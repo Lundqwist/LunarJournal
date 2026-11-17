@@ -389,13 +389,31 @@ end
 
 local tradeSkillOpen      -- name of the open profession window
 local castStart, castName
-local lootFrom            -- "fishing" or a gathering kind, for the next loot window
+local lootFrom            -- a gathering kind, for the next loot window
 local lootFromUntil = 0
+local fishStoppedAt = 0   -- GetTime() when the last fishing channel ended
+local fishLootedAt = -10  -- GetTime() when the last catch was looted
+local lootHandled         -- this loot window is already written down
+
+local function NotSecret(v)
+    return not (issecretvalue and issecretvalue(v))
+end
 
 local function OnTradeSkillShow()
     local name
-    if GetTradeSkillLine then name = GetTradeSkillLine() end
+    if C_TradeSkillUI and C_TradeSkillUI.GetBaseProfessionInfo then
+        local ok, info = pcall(C_TradeSkillUI.GetBaseProfessionInfo)
+        if ok and type(info) == "table" then name = info.professionName end
+    end
+    if not name and GetTradeSkillLine then name = GetTradeSkillLine() end
     tradeSkillOpen = name or "profession"
+end
+
+-- In the modern client a recipe's ID is the spell ID of making it
+local function IsRecipe(spellId)
+    if not (C_TradeSkillUI and C_TradeSkillUI.GetRecipeInfo) then return false end
+    local ok, info = pcall(C_TradeSkillUI.GetRecipeInfo, spellId)
+    return ok and type(info) == "table"
 end
 
 local function OnCraftShow()
@@ -418,15 +436,18 @@ local function OnCastSucceeded(unit, _, spellId)
         Add(session.time, "gathering", castStart and castName == name and (GetTime() - castStart) or 2)
         Add(session, "gatherCasts")
         lootFrom, lootFromUntil = GATHER[name], GetTime() + 5
-    elseif tradeSkillOpen and castStart and castName == name then
-        Add(session.time, "crafting", GetTime() - castStart)
+    elseif IsRecipe(spellId) or (tradeSkillOpen and castStart and castName == name) then
+        -- a craft: known as a recipe, or cast from an open profession window
+        local took = castStart and castName == name and (GetTime() - castStart) or 0
+        Add(session.time, "crafting", took)
         Add(session.crafted, name)
         local last = session.events[#session.events]
         -- many crafts in a row become one entry with a count
         if last and last.k == "craft" and last.name == name then
             last.n = (last.n or 1) + 1
+            last.t2 = time()
         else
-            Log("craft", { name = name, skill = tradeSkillOpen, n = 1 })
+            Log("craft", { name = name, skill = tradeSkillOpen or "profession", n = 1 })
         end
     end
     castStart, castName = nil, nil
@@ -443,20 +464,34 @@ local function OnChannelStop(unit)
     Add(session.time, "fishing", GetTime() - activity.fishing)
     Add(session, "fishingCasts")
     activity.fishing = nil
-    lootFrom, lootFromUntil = "fishing", GetTime() + 3
+    -- if the catch was already looted, there's nothing more to wait for
+    fishStoppedAt = (GetTime() - fishLootedAt < 2) and 0 or GetTime()
 end
 
+-- The catch: in the modern client the loot window opens while the fishing channel is
+-- still running (the channel only stops afterwards), so "still fishing" counts too.
+local function IsFishing()
+    if IsFishingLoot then
+        local ok, yes = pcall(IsFishingLoot)
+        if ok and NotSecret(yes) and yes then return true end
+    end
+    return activity.fishing ~= nil or GetTime() - fishStoppedAt < 3
+end
+
+-- LOOT_READY and LOOT_OPENED both come for one loot window; write it down once
 local function OnLootOpened()
-    if not session then return end
+    if not session or lootHandled then return end
     local from
-    if IsFishingLoot and IsFishingLoot() then from = "fishing"
+    if IsFishing() then from = "fishing"
     elseif lootFrom and GetTime() < lootFromUntil then from = lootFrom end
-    lootFrom = nil
     if not from then return end
+    lootHandled = true
+    lootFrom = nil
+    if from == "fishing" then fishLootedAt, fishStoppedAt = GetTime(), 0 end
     local got = {}
     for i = 1, GetNumLootItems() do
         local _, name, quantity = GetLootSlotInfo(i)
-        if name and (quantity or 0) > 0 then
+        if NotSecret(name) and NotSecret(quantity) and name and (quantity or 0) > 0 then
             Add(from == "fishing" and session.fish or session.gathered, name, quantity)
             got[#got + 1] = quantity > 1 and (quantity .. "x " .. name) or name
         end
@@ -465,7 +500,7 @@ local function OnLootOpened()
         local last = session.events[#session.events]
         local kind = from == "fishing" and "fish" or "gather"
         -- a fishing trip at one spot becomes one entry
-        if last and last.k == kind and last.how == from and time() - last.t < 300 then
+        if last and last.k == kind and last.how == from and time() - (last.t2 or last.t) < 300 then
             for _, item in ipairs(got) do last.items[#last.items + 1] = item end
             last.t2 = time()
             last.g2 = GameTime()
@@ -884,7 +919,9 @@ On("UNIT_SPELLCAST_START", OnCastStart)
 On("UNIT_SPELLCAST_SUCCEEDED", OnCastSucceeded)
 On("UNIT_SPELLCAST_CHANNEL_START", OnChannelStart)
 On("UNIT_SPELLCAST_CHANNEL_STOP", OnChannelStop)
+On("LOOT_READY", OnLootOpened)
 On("LOOT_OPENED", OnLootOpened)
+On("LOOT_CLOSED", function() lootHandled = nil end)
 
 -- (no COMBAT_LOG_EVENT_UNFILTERED: registering it is a protected action in the modern client)
 On("PLAYER_TARGET_CHANGED", function() SafeWatch("target") end)
