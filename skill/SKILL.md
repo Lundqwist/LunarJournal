@@ -29,31 +29,33 @@ python -I E:\ProjectsCoding\LunarJournal\agent\journal.py untold <Character-Surn
 
 ## 2. Read what has been written before
 
-The story file is `Z:\wowcharacters\data\stories\forever\<slug>.md`. Read it if it exists, so
-the new chapter carries on from the last one: same voice, no repeated memories, the same names
+The story is a folder of chapters, `Z:\wowcharacters\data\stories\forever\<slug>\001.md`,
+`002.md`, ... (and maybe an older single file `<slug>.md` next to the folder, shown as an
+introduction). Read them in order if they exist, so the new chapter carries on from the last one: same voice, no repeated memories, the same names
 for the same people.
 
 ## 3. Write the chapter
 
 **Who is speaking.** The character himself, many years from now, old and looking back. He is
-telling his memories in the first person, the way someone tells a story by a fire: "I remember
-the first time Dizzywig sent me out onto the salt flats..." He knows how things turned out, so he
-can hint at it ("I didn't know then that I would walk that road a hundred times more"), but he
-never invents later events that would clash with what the journal may show in future chapters.
+telling his memories in the first person, the way someone tells a story by a fire: unhurried, warm,
+sometimes wry. He knows he lived a long life after this, so he may now and then hint that a place
+or person came to matter more later, but he never names later events that could clash with what
+the journal shows in future chapters.
 His race, class, sex and guild are in `info`; speak like that kind of person would. (This page
 says "he"; for a female character it's "she", from `info.sex`.)
 
 **What is true.** Everything that *happened* comes from the journal: which quests, who gave
 them and who took them back, where, which zones, who he grouped with, what he fished, made and
-gathered, what killed him, when he levelled. Don't add quests, people or places that aren't there.
+gathered, what killed him, when he levelled. Don't add quests, people, creatures or places that
+aren't there, and don't guess anyone's race. A quest is only finished if it has a quest_done
+event; one that was only accepted is still ahead of him.
 What you *may* add is what a memory adds: feelings, the weather, smells, what he thought of
 someone, small details of the place that fit the zone in the game world.
 
 **Use the details, they are what makes it his.**
 - In-game time of day (`g` on each event, `gameTimeAtStart`): dawn, a hot noon, quests handed
   in after dark, a long night of fishing.
-- The minutes and yards: long walks ("I must have run half of the Needles that day"), long
-  rides, the hours at the water's edge, the time at the anvil or the cooking fire.
+- The minutes and yards: long walks, long rides, the hours at the water's edge, the time at the anvil or the cooking fire.
 - Quest texts (`questDetails[...].text` and `.objective`): use them to know what the quest giver
   wanted and why. Retell it in his words; never copy more than a few words of the game's text.
 - `npc` entries with `as` (vendor, trainer, flight master, innkeeper...): the people of his road.
@@ -61,8 +63,8 @@ someone, small details of the place that fit the zone in the game world.
 - Players met (`group_join`, `trade`, `duel`): name them as companions, briefly. Don't make up
   anything about them as people beyond what they did together.
 - Deaths: memories of pain or narrow escapes, named after `by`.
-- Leave out plain counting ("I killed 12 Puddlejumpers"); turn numbers into a feeling, unless one
-  number is worth saying out loud.
+- Leave out plain counting; turn numbers into a feeling, unless one number is worth saying out
+  loud.
 
 **Shape.** One chapter for all the untold sessions (or one per clear stretch if there are many
 days). 400 to 900 words. Pick the moments that make a story: the start, a turn, an end; you don't
@@ -76,21 +78,22 @@ have to mention every event. Markdown:
 <the memory, in paragraphs>
 ```
 
-The chapter heading is `###` (the page already has a "Story" heading). No HTML (the site shows it
-as text). If the file is new, start it with the chapter; no title or intro above it.
+Each chapter is its own file and gets its own page on the site; the `###` line is its title and
+the italic line under it is shown as its subtitle. No HTML (the site shows it as text).
 
 ## 4. Post it
 
 - With `draft` in the arguments: show the chapter and stop. Don't write any file or mark anything.
-- Otherwise: append the chapter to `Z:\wowcharacters\data\stories\forever\<slug>.md` (create the
-  file if it's missing; one blank line between chapters; UTF-8 without BOM). The site reads it on
-  every request, so it is live at once. Don't change earlier chapters unless the user asks.
+- Otherwise: save it as the next chapter, `Z:\wowcharacters\data\stories\forever\<slug>\NNN.md`,
+  where NNN is one more than the highest number already there (`001.md` for the first; create the
+  folder if it's missing; UTF-8 without BOM). The site reads it on every request, so it is live at
+  once. Don't change earlier chapters unless the user asks.
 - Then mark the sessions as told, with the id of the last session you used:
 
 ```powershell
 python -I E:\ProjectsCoding\LunarJournal\agent\journal.py mark <Character-Surname> <last session id>
 ```
 
-- Tell the user the chapter title and the page:
-  `https://lundqwist.se/wowcharacters/forever/character.html?c=<slug>`. If `Z:` isn't there (the
+- Tell the user the chapter title and its page:
+  `https://lundqwist.se/wowcharacters/forever/chapter.html?c=<slug>&n=<number>`. If `Z:` isn't there (the
   NAS share not mapped), don't mark anything; show the chapter and say it couldn't be posted.
