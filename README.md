@@ -50,8 +50,11 @@ The chapters are told by the character himself, many years later, remembering.
    write wishes for the chapter.
 4. **Write chapter**: it reads the story so far from the site, sends it and the journal to the AI,
    and shows the chapter. Edit it as you like.
-5. **Post to lundqwist.se**: adds the chapter to the end of the story (the site keeps the old
-   version in `stories\forever\.history`) and marks the ticked sessions as told.
+5. **Post to lundqwist.se**: saves it as the story's next chapter, with its own page and a link in
+   the character's list of chapters, and marks the ticked sessions as told. **Open the new chapter**
+   then shows it.
+
+The icon (an old leather-bound book with a crescent moon) is drawn by `StoryMaker\tools\make-icon.ps1`.
 
 ```powershell
 StoryMaker\install.ps1        # builds it to %LOCALAPPDATA%\LunarJournal\StoryMaker, adds a Start menu shortcut
