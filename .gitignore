@@ -4,3 +4,5 @@ __pycache__/
 StoryMaker/bin/
 StoryMaker/obj/
 *.csproj.user
+# build output from tools\package.ps1
+curseforge/

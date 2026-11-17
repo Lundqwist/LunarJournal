@@ -125,6 +125,7 @@ StoryMaker finds the journals by itself in the game's `WTF\Account` folder.
 |---|---|
 | `LunarJournal.toc`, `LunarJournal.lua` | the addon (Lua, interface 16001) |
 | `LunarLink.lua` | minimap button and options page; the same file is in FavoriteItems and QuestXPTracker, keep the copies alike |
+| `tools\package.ps1`, `CURSEFORGE.md` | `.\tools\package.ps1` builds the CurseForge upload folder `curseforge\` (git-ignored): the zip, `CURSEFORGE.md` as `description.md`, a 400×400 avatar and the screenshots |
 | `agent\`, `skill\` | an older way to write chapters with [Claude Code](https://claude.com/claude-code) instead of StoryMaker: `agent\journal.py` reads the journal, `skill\SKILL.md` is the `/wow-story` skill (`.\install-skill.ps1` installs it) |
 
 The modern WoW client doesn't let addons read the combat log, so kills are counted from your
