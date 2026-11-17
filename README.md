@@ -151,6 +151,11 @@ every chapter before it's posted.
 7. Press **Post to lundqwist.se**. It becomes the story's next chapter, and the sessions you used
    count as told. **Open the new chapter** shows it on the site.
 
+   Or press **Save as Markdown...** to keep it on your own PC. It suggests
+   `Documents\Lunar Journal\<Character>\002 <title>.md`, numbered after the chapters already
+   saved there, but you can save it anywhere. It then asks whether the sessions you used should
+   count as told.
+
 ## Posting to a website
 
 StoryMaker posts to a small story API on the website. It's built for
@@ -174,7 +179,9 @@ Another site can take the posts too, if it answers the same two calls (both with
 | `GET {site}/api/forever/story?c=<character>` | `{ "markdown": "..." }`: the whole story so far |
 | `POST {site}/api/forever/story?c=<character>` with `{ "markdown": "..." }` | saves it as the next chapter, answers `{ "chapter": 3 }` |
 
-Without a website you can still write chapters and copy them out of the text box.
+**You don't need a website.** Without one, save each chapter with **Save as Markdown...**. When
+no `STORY_TOKEN` is set, StoryMaker uses the chapters saved in the character's folder as the
+story so far, so the next chapter still carries on from the last.
 
 ## Privacy
 
