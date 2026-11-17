@@ -116,6 +116,7 @@ Needs **Windows 10 or 11** and the **[.NET 8 SDK](https://dotnet.microsoft.com/d
    **Lunar Journal StoryMaker** to the Start menu. Run it again to update; `-Remove` uninstalls it.
    (If Windows refuses to run the script, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once.)
 3. Start **Lunar Journal StoryMaker** from the Start menu and open **Settings...**:
+   - **Look**: light or dark (by default it follows Windows' own setting).
    - **WTF\Account folder**: your game's `_forever_\WTF\Account` folder, if it isn't in the
      default place.
    - The **website** and **AI** settings: see the next sections.
