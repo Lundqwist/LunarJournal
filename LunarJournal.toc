@@ -2,7 +2,7 @@
 ## Title: Lunar Journal
 ## Notes: Keeps a journal of your adventures: quests and who gave them, people you met, time spent running, riding, fishing, crafting and gathering, with the in-game time. /lj
 ## Author: Lundqwist
-## Version: 0.1.0
+## Version: 0.1.1
 ## IconTexture: Interface\Icons\INV_Misc_Book_09
 ## OptionalDeps: LunarMods
 ## SavedVariables: LunarJournalSettings

@@ -466,45 +466,76 @@ local function OnLootOpened()
 end
 
 ----------------------------------------------------------------------------------------
--- Combat: kills, deaths, what hurt you last
+-- Combat: kills, deaths and what killed you. The modern client doesn't let addons read
+-- the combat log, so this watches the units the game shows: your target, focus, mouse-
+-- over and nameplates. A unit counts as your kill when it dies while you were on its
+-- threat list and it wasn't tapped by someone outside your group.
 ----------------------------------------------------------------------------------------
 local playerGUID
-local lastHurtBy
+local lastFoe            -- the last enemy that was attacking you
 local CLASSIFICATION = { elite = "elite", rare = "rare", rareelite = "rare elite", worldboss = "boss" }
-local targetClass = {}  -- GUID -> classification, seen while targeted
+local engaged, engagedCount = {}, 0    -- GUID -> true while fighting it
+local counted = {}                     -- GUIDs already counted as dead
 
-local function OnTargetChanged()
-    local guid = UnitGUID("target")
-    if guid and not UnitIsPlayer("target") then
-        local c = UnitClassification("target")
-        if CLASSIFICATION[c] then targetClass[guid] = { CLASSIFICATION[c], UnitLevel("target") } end
+local function Secret(v)
+    return issecretvalue and issecretvalue(v)
+end
+
+local function WatchUnit(unit)
+    if not session or not S.kills or not UnitExists(unit) or UnitIsUnit(unit, "player") then return end
+    local guid = UnitGUID(unit)
+    if not guid or Secret(guid) or UnitIsFriend("player", unit) then return end
+    if UnitIsDead(unit) then
+        if engaged[guid] and not counted[guid] and not (UnitIsTapDenied and UnitIsTapDenied(unit)) then
+            counted[guid] = true
+            local name = UnitName(unit)
+            if Secret(name) then return end
+            local isPlayer = UnitIsPlayer(unit)
+            Add(session.kills, (isPlayer and "player: " or "") .. (name or "?"))
+            local c = CLASSIFICATION[UnitClassification(unit)]
+            if isPlayer then
+                Log("kill", { name = name, player = true })
+            elseif c then
+                Log("kill", { name = name, rank = c, level = UnitLevel(unit) })
+            end
+        end
+        return
+    end
+    local threat = UnitThreatSituation and UnitThreatSituation("player", unit)
+    if threat then
+        if not engaged[guid] then
+            engaged[guid] = true
+            engagedCount = engagedCount + 1
+            if engagedCount > 400 then engaged, counted, engagedCount = {}, {}, 0 end
+        end
+        if threat >= 2 then
+            local name = UnitName(unit)
+            if not Secret(name) then lastFoe = name end
+        end
     end
 end
 
-local function OnCombatLog()
-    if not session then return end
-    local _, sub, _, srcGUID, srcName, _, _, dstGUID, dstName, dstFlags = CombatLogGetCurrentEventInfo()
-    if sub == "PARTY_KILL" then
-        if not S.kills then return end
-        local mine = srcGUID == playerGUID or (UnitGUID("pet") and srcGUID == UnitGUID("pet"))
-        if not mine or not dstName then return end
-        local isPlayer = bit.band(dstFlags or 0, COMBATLOG_OBJECT_TYPE_PLAYER or 0x400) > 0
-        Add(session.kills, (isPlayer and "player: " or "") .. dstName)
-        local special = targetClass[dstGUID]
-        if isPlayer then
-            Log("kill", { name = dstName, player = true })
-        elseif special then
-            Log("kill", { name = dstName, rank = special[1], level = special[2] })
-        end
-        targetClass[dstGUID] = nil
-    elseif dstGUID == playerGUID and srcName and srcGUID ~= playerGUID and
-        (sub:find("_DAMAGE$") or sub == "SWING_DAMAGE") then
-        lastHurtBy = srcName
+local function SafeWatch(unit)
+    pcall(WatchUnit, unit)
+end
+
+local function WatchAll()
+    SafeWatch("target"); SafeWatch("focus"); SafeWatch("mouseover")
+    for i = 1, 40 do
+        local unit = "nameplate" .. i
+        if UnitExists(unit) then SafeWatch(unit) end
+    end
+end
+
+local function OnUnitChanged(unit)
+    if type(unit) == "string" and (unit == "target" or unit == "focus" or unit == "mouseover" or unit:find("^nameplate")) then
+        SafeWatch(unit)
     end
 end
 
 local function OnDead()
-    Log("death", { by = lastHurtBy })
+    Log("death", { by = lastFoe })
+    lastFoe = nil
 end
 
 ----------------------------------------------------------------------------------------
@@ -514,7 +545,7 @@ local QUALITY = { ["ff0070dd"] = "rare", ["ffa335ee"] = "epic", ["ffff8000"] = "
 local lootSelf
 
 local function OnLootMessage(msg)
-    if not session or type(msg) ~= "string" then return end
+    if not session or Secret(msg) or type(msg) ~= "string" then return end
     -- only our own loot ("You receive loot: ..."), never other players'
     if not lootSelf then
         local a = LOOT_ITEM_SELF and LOOT_ITEM_SELF:gsub("%%s.*", "") or "You receive loot"
@@ -777,6 +808,7 @@ On("PLAYER_LOGIN", function()
     C_Timer.NewTicker(1, function()
         local ok, err = pcall(Tick)
         if not ok then geterrorhandler()(err) end
+        if session and not S.paused then WatchAll() end
     end)
     C_Timer.NewTicker(2, function() if frame:IsShown() then Refresh() end end)
 end)
@@ -844,8 +876,12 @@ On("UNIT_SPELLCAST_CHANNEL_START", OnChannelStart)
 On("UNIT_SPELLCAST_CHANNEL_STOP", OnChannelStop)
 On("LOOT_OPENED", OnLootOpened)
 
-On("PLAYER_TARGET_CHANGED", OnTargetChanged)
-On("COMBAT_LOG_EVENT_UNFILTERED", OnCombatLog)
+-- (no COMBAT_LOG_EVENT_UNFILTERED: registering it is a protected action in the modern client)
+On("PLAYER_TARGET_CHANGED", function() SafeWatch("target") end)
+On("UNIT_HEALTH", OnUnitChanged)
+On("UNIT_FLAGS", OnUnitChanged)
+On("UNIT_THREAT_LIST_UPDATE", OnUnitChanged)
+On("NAME_PLATE_UNIT_REMOVED", OnUnitChanged)
 On("PLAYER_DEAD", OnDead)
 On("PLAYER_UNGHOST", function() Log("revived") end)
 
