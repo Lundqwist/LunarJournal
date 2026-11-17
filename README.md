@@ -92,8 +92,7 @@ takes the link away again.
 
 The options can switch off saving quest texts or counting kills, and can print a chat line for
 every entry. Left-click the minimap button to open the journal, right-click it for the options,
-and drag it to move it. With [LunarMods](https://github.com/Lundqwist/LunarMods) installed, the
-options page can link the journal to the LM button instead.
+and drag it to move it.
 
 The game saves the journal when you **log out or type `/reload`**, per character, in
 `WTF\Account\<account>\<realm>\<Character>\SavedVariables\LunarJournal.lua`. StoryMaker reads it
@@ -125,7 +124,7 @@ StoryMaker finds the journals by itself in the game's `WTF\Account` folder.
 | Folder / file | |
 |---|---|
 | `LunarJournal.toc`, `LunarJournal.lua` | the addon (Lua, interface 16001) |
-| `LunarLink.lua` | shared by the Lunar mods: minimap button, options page, LunarMods link. The original is in [LunarMods](https://github.com/Lundqwist/LunarMods) (`shared\LunarLink.lua`) |
+| `LunarLink.lua` | minimap button and options page; the same file is in FavoriteItems and QuestXPTracker, keep the copies alike |
 | `agent\`, `skill\` | an older way to write chapters with [Claude Code](https://claude.com/claude-code) instead of StoryMaker: `agent\journal.py` reads the journal, `skill\SKILL.md` is the `/wow-story` skill (`.\install-skill.ps1` installs it) |
 
 The modern WoW client doesn't let addons read the combat log, so kills are counted from your

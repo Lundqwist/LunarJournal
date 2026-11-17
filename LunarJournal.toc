@@ -4,11 +4,8 @@
 ## Author: Lundqwist
 ## Version: 0.1.1
 ## IconTexture: Interface\Icons\INV_Misc_Book_09
-## OptionalDeps: LunarMods
 ## SavedVariables: LunarJournalSettings
 ## SavedVariablesPerCharacter: LunarJournalDB
-## X-LunarMods: 1
-## X-LunarMods-Open: /lj
 
 LunarLink.lua
 LunarJournal.lua

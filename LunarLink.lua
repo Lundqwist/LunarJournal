@@ -1,24 +1,13 @@
--- LunarLink.lua (link version 1)
+-- LunarLink.lua
 --
--- Shared by Lundqwist's mods. The same file is copied into each mod; the
--- original lives in the LunarMods repository (shared\LunarLink.lua) and
--- tools\sync-link.ps1 copies it out. Edit it there, not in a mod.
---
--- It gives a mod three things:
+-- The same file is copied into each of Lundqwist's mods (FavoriteItems,
+-- QuestXPTracker, LunarJournal). It gives a mod two things:
 --   * its own minimap button (left-click: the mod's action, right-click: its
 --     options, drag: move it around the minimap)
 --   * an options page in the game's settings (Options -> AddOns)
---   * a "Link to LunarMods" button on that page. A linked mod hides its own
---     minimap button and is run from LunarMods instead: the LM button's menu
---     opens it, its tooltip shows the mod's summary, and the /lm list has an
---     Options button for it. Unlinking gives the mod its own button back.
---
--- Without LunarMods (not installed, or switched off) the mod simply works on
--- its own with its own minimap button, and the link button is greyed out.
 --
 -- In the mod's .toc file, before the mod's own Lua file:
 --
---     ## OptionalDeps: LunarMods
 --     LunarLink.lua
 --
 -- In the mod's Lua file:
@@ -29,7 +18,7 @@
 --         title   = "My Mod",
 --         icon    = "Interface\\AddOns\\MyMod\\Media\\Icon",
 --         db      = function() return MyModSettings end,   -- saved table, account-wide
---         open    = function() ... end,                   -- left-click / "Open" in LunarMods
+--         open    = function() ... end,                   -- left-click on the minimap button
 --         tooltip = function(tooltip) ... end,            -- extra tooltip lines (optional)
 --         hint    = "Left-click: show or hide the window", -- (optional)
 --         options = function(link) ... end,               -- extra settings (optional), see AddCheckbox etc.
@@ -38,23 +27,14 @@
 --     -- at PLAYER_LOGIN, when the saved variables are loaded:
 --     link:Init()
 --
--- The saved table gets two keys: minimap = { angle, hide } and lunarLinked.
+-- The saved table gets the key minimap = { angle, hide }.
 
 local _, ns = ...
 
-local LINK_VERSION = 1
-local LM_COLOR = "|cff7fb2ff"
+local TITLE_COLOR = "|cff7fb2ff"
 
 local Link = {}
 Link.__index = Link
-
--- LunarMods, when it is loaded and new enough to know about links
-local function LunarModsAPI()
-    local lm = _G.LunarMods
-    if type(lm) == "table" and type(lm.RegisterMod) == "function" then
-        return lm
-    end
-end
 
 function ns.NewLunarLink(spec)
     assert(type(spec) == "table" and spec.name and spec.db, "NewLunarLink needs name and db")
@@ -69,33 +49,12 @@ end
 function Link:Settings()
     local db = self.spec.db()
     db.minimap = db.minimap or {}
+    db.lunarLinked = nil    -- left over from the LunarMods link, which is gone
     return db
 end
 
--- Linked and LunarMods is there to do the job
-function Link:IsLinked()
-    return LunarModsAPI() ~= nil and self:Settings().lunarLinked == true
-end
-
 function Link:Print(text)
-    print(LM_COLOR .. self.title .. "|r: " .. text)
-end
-
-function Link:SetLinked(on)
-    local lm = LunarModsAPI()
-    if on and not lm then
-        self:Print("LunarMods isn't loaded, so there is nothing to link to.")
-        return
-    end
-    self:Settings().lunarLinked = on and true or false
-    self:UpdateButton()
-    self:RefreshOptions()
-    if lm and lm.RefreshWindow then lm:RefreshWindow() end
-    if on then
-        self:Print("linked to LunarMods. Open it from the LM minimap button; its own button is hidden.")
-    else
-        self:Print("unlinked from LunarMods. It has its own minimap button again.")
-    end
+    print(TITLE_COLOR .. self.title .. "|r: " .. text)
 end
 
 function Link:Open()
@@ -204,7 +163,7 @@ end
 
 function Link:UpdateButton()
     if not self.button then return end
-    local show = not self:IsLinked() and not self:Settings().minimap.hide
+    local show = not self:Settings().minimap.hide
     self.button:SetShown(show)
     if show then self:PlaceButton() end
 end
@@ -296,18 +255,6 @@ function Link:AddButton(text, width, onClick, after)
     return b
 end
 
-function Link:LinkStatusText()
-    local lm = _G.LunarMods
-    if not lm then
-        return "|cff999999LunarMods isn't loaded.|r Install or switch on LunarMods to manage all of Lundqwist's mods from one list and one minimap button."
-    elseif not LunarModsAPI() then
-        return "|cffff8040This LunarMods is too old to link mods.|r Update LunarMods."
-    elseif self:IsLinked() then
-        return "|cff40ff40Linked.|r LunarMods' LM minimap button opens " .. self.title .. " and shows its summary, and /lm lists it with an Options button. Its own minimap button is hidden."
-    end
-    return "|cffffd100Not linked.|r " .. self.title .. " has its own minimap button. Link it to run it from LunarMods' LM button instead."
-end
-
 function Link:BuildOptions()
     local panel = CreateFrame("Frame")
     panel.name = self.title
@@ -329,36 +276,14 @@ function Link:BuildOptions()
     self:AddHeader("Minimap button")
     self:AddCheckbox("Show the minimap button",
         function() return not self:Settings().minimap.hide end,
-        function(on) self:SetButtonHidden(not on) end,
-        function() return not self:IsLinked() end)
-    self:AddText(function()
-        if self:IsLinked() then return "Hidden while linked to LunarMods: use the LM button instead." end
-        return "Left-click it to open " .. self.title .. ", right-click it for these options, drag it to move it."
-    end, "GameFontDisableSmall")
+        function(on) self:SetButtonHidden(not on) end)
+    self:AddText("Left-click it to open " .. self.title .. ", right-click it for these options, drag it to move it.",
+        "GameFontDisableSmall")
 
     if self.spec.options then
         local ok, err = pcall(self.spec.options, self)
         if not ok then geterrorhandler()(err) end
     end
-
-    self:AddHeader("LunarMods")
-    self:AddText(function() return self:LinkStatusText() end, "GameFontHighlightSmall")
-    local linkButton = self:AddButton("Link to LunarMods", 180, function()
-        self:SetLinked(not self:IsLinked())
-    end)
-    local openLM = self:AddButton("Open LunarMods", 140, function()
-        local lm = LunarModsAPI()
-        if lm then
-            if SettingsPanel and SettingsPanel:IsShown() and HideUIPanel then HideUIPanel(SettingsPanel) end
-            lm:ToggleWindow()
-        end
-    end, linkButton)
-    self:OnRefresh(function()
-        local lm = LunarModsAPI()
-        linkButton:SetText(self:IsLinked() and "Unlink from LunarMods" or "Link to LunarMods")
-        linkButton:SetEnabled(lm ~= nil)
-        openLM:SetEnabled(lm ~= nil)
-    end)
 
     if self.spec.help then
         self:AddHeader("Commands")
@@ -406,16 +331,4 @@ function Link:Init()
     self:CreateButton()
     self:BuildOptions()
     self:UpdateButton()
-
-    local lm = LunarModsAPI()
-    if lm then
-        lm:RegisterMod(self.name, {
-            version = LINK_VERSION,
-            IsLinked = function() return self:Settings().lunarLinked == true end,
-            SetLinked = function(on) self:SetLinked(on) end,
-            OpenOptions = function() self:OpenOptions() end,
-            Open = self.spec.open and function() self:Open() end or nil,
-            Tooltip = self.spec.tooltip,
-        })
-    end
 end

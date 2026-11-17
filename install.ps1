@@ -8,7 +8,6 @@
 # /reload. A real folder with the same name in AddOns (an older copy) is moved
 # to AddOns-backup-<date> next to AddOns, never deleted. Saved settings live in
 # the WTF folder and are not touched.
-# (The original of this script is shared\install-mod.ps1 in the LunarMods repository.)
 
 param(
     [string]$AddOns = 'D:\Blizzard\World of Warcraft\_forever_\Interface\AddOns',
