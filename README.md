@@ -6,7 +6,7 @@
 
 <p align="center">
   A World of Warcraft: Forever addon that keeps a journal of your adventures,<br>
-  and <b>StoryMaker</b>, a Windows program that lets an AI turn that journal into your character's own memories.
+  for <a href="https://github.com/Lundqwist/StoryMaker"><b>StoryMaker</b></a>, the Windows program that lets an AI turn it into your character's own memories.
 </p>
 
 ---
@@ -32,10 +32,7 @@ on lundqwist.se.
 - [What the addon records](#what-the-addon-records)
 - [Installing the addon](#installing-the-addon)
 - [Using the addon](#using-the-addon)
-- [Installing StoryMaker](#installing-storymaker)
-- [Choosing an AI](#choosing-an-ai)
-- [Writing and posting a chapter](#writing-and-posting-a-chapter)
-- [Posting to a website](#posting-to-a-website)
+- [Turning the journal into a story: StoryMaker](#turning-the-journal-into-a-story-storymaker)
 - [Privacy](#privacy)
 - [For developers](#for-developers)
 
@@ -102,105 +99,18 @@ The game saves the journal when you **log out or type `/reload`**, per character
 `WTF\Account\<account>\<realm>\<Character>\SavedVariables\LunarJournal.lua`. StoryMaker reads it
 from there.
 
-## Installing StoryMaker
+## Turning the journal into a story: StoryMaker
 
-Needs **Windows 10 or 11** and the **[.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)**
-(to build it; running it only needs the .NET 8 Desktop Runtime, which comes with the SDK).
+**[StoryMaker](https://github.com/Lundqwist/StoryMaker)** is the Windows program that reads the
+journal and lets an AI of your choosing (free with Ollama on your own PC, or Claude, OpenAI, Gemini)
+write each chapter as the character's own memories. You edit it as Markdown, add screenshots from
+the game and sounds, and post it to your website or save it on your PC.
 
-1. Download the repository (**Code → Download ZIP**, or `git clone`), and unpack it.
-2. Open PowerShell in the unpacked folder and run:
+**[Download StoryMaker for Windows](https://github.com/Lundqwist/StoryMaker/releases/latest)**: a normal
+installer with .NET included, no admin rights needed. How to set it up, choose an AI and post to a
+website is in [StoryMaker's README](https://github.com/Lundqwist/StoryMaker#readme).
 
-   ```powershell
-   .\StoryMaker\install.ps1
-   ```
-
-   This builds StoryMaker into `%LOCALAPPDATA%\LunarJournal\StoryMaker` and adds
-   **Lunar Journal StoryMaker** to the Start menu. Run it again to update; `-Remove` uninstalls it.
-   (If Windows refuses to run the script, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once.)
-3. Start **Lunar Journal StoryMaker** from the Start menu and open **Settings...**:
-   - **Look**: *Dark (lundqwist.se)*, navy and gold like [lundqwist.se](https://lundqwist.se), or a light
-     parchment look. By default it follows Windows' own light/dark setting.
-   - **Screenshots**: pictures are picked from the game's `_forever_\Screenshots` folder, next to `WTF`.
-   - **WTF\Account folder**: your game's `_forever_\WTF\Account` folder, if it isn't in the
-     default place.
-   - The **website** and **AI** settings: see the next sections.
-
-## Choosing an AI
-
-StoryMaker can write with any of these. Pick one in the **AI** box at the top, and the model next
-to it.
-
-| AI | Cost | Set up |
-|---|---|---|
-| **Ollama** (default) | free, runs on your own PC, works offline | Install [Ollama](https://ollama.com) (`winget install Ollama.Ollama`) and download a model: `ollama pull gemma3:12b` (about 8 GB; best with a graphics card with 12 GB). A chapter takes about a minute. |
-| **Claude** (Anthropic) | paid per use | Create an API key at [console.anthropic.com](https://console.anthropic.com), then `setx ANTHROPIC_API_KEY "sk-ant-..."`. Writes the best stories. |
-| **OpenAI** | paid per use | `setx OPENAI_API_KEY "..."` |
-| **Gemini** (Google) | has a free tier | A key from [Google AI Studio](https://aistudio.google.com), then `setx GEMINI_API_KEY "..."` |
-| **OpenAI-compatible** | depends | Any server that speaks OpenAI's chat API (LM Studio, OpenRouter...): set its address in Settings |
-
-Keys are never stored by StoryMaker: it reads them from Windows user environment variables, and
-Settings shows which ones it found. After `setx`, start StoryMaker again so it sees the new value.
-A local model is weaker than Claude and now and then gets a detail wrong, which is why you read
-every chapter before it's posted.
-
-## Writing and posting a chapter
-
-1. Play with the addon on, then log out or `/reload`. Take screenshots (Print Screen) of moments
-   you may want in the story.
-2. Start StoryMaker. The front page has a card for every character with a journal, saying how
-   many play sessions aren't in the story yet. Click one. (**Home** brings you back.)
-3. The **play sessions** not yet in the story are ticked. Untick any you want to leave out.
-4. Optionally write **wishes** for this chapter ("make it about the night at the Crossroads").
-5. Press **Write chapter**. StoryMaker reads the story so far from your website, so the new
-   chapter carries on from the last one, and sends it and the journal to the AI.
-6. Read the chapter and edit it in the box as much as you like. It is [Markdown](https://commonmark.org/help/),
-   and the bar above it helps:
-   - **B**, **I**, **Title**, **Quote**, **Divider** (a row of gold stars between scenes), **Link...**
-   - **Picture...** shows your screenshots as thumbnails, newest first. Pick one and give it a caption;
-     it is shown under the picture.
-   - **Sound...** adds a sound (mp3, ogg, wav, m4a) with a caption; on the page it gets a player.
-   - **Preview** shows the chapter as it will look, pictures and sounds included. **Edit** goes back.
-
-   While you edit, pictures and sounds point at files on your PC, written as
-   `![caption](<D:/Blizzard/.../WoWScrnShot_111726_085709.jpg>)`. A "picture" that is a sound file is
-   a sound.
-7. Press **Post to lundqwist.se**. Pictures and sounds are uploaded first (screenshots made at most
-   1600 pixels wide), then the chapter becomes the story's next chapter and the sessions you used count
-   as told. **Open the new chapter** shows it on the site.
-
-   Or press **Save as Markdown...** to keep it on your own PC. It suggests
-   `Documents\Lunar Journal\<Character>\002 <title>.md`, numbered after the chapters already
-   saved there, but you can save it anywhere. Its pictures and sounds are copied into a `media`
-   folder next to it. It then asks whether the sessions you used should count as told.
-
-## Posting to a website
-
-StoryMaker posts to a small story API on the website. It's built for
-[WowCharacters](https://github.com/Lundqwist/WowCharacters), which runs
-[lundqwist.se/wowcharacters](https://lundqwist.se/wowcharacters/): each character's page lists the
-chapters, and every chapter has its own page with links to the one before and after. To run it for
-your own characters:
-
-1. Set up WowCharacters (see its README) and add your characters to its `characters.json`. A
-   character's name there is the journal's folder name in lower case: `Gilded-Gobsong` →
-   `gilded-gobsong`.
-2. Put a long random secret in the site's `.env` as `STORY_TOKEN=` (at least 32 characters), and
-   the same value on your PC: `setx STORY_TOKEN "..."`.
-3. In StoryMaker's Settings, set the **site address**, e.g. `https://example.com/wowcharacters`.
-
-Another site can take the posts too, if it answers the same two calls (both with
-`Authorization: Bearer <STORY_TOKEN>`):
-
-| | |
-|---|---|
-| `GET {site}/api/forever/story?c=<character>` | `{ "markdown": "..." }`: the whole story so far |
-| `POST {site}/api/forever/story?c=<character>` with `{ "markdown": "..." }` | saves it as the next chapter, answers `{ "chapter": 3 }` |
-| `POST {site}/api/forever/media?c=<character>` with a multipart `file` | stores a picture or sound, answers `{ "url": "..." }` |
-
-**You don't need a website.** Without one, save each chapter with **Save as Markdown...**. When
-no `STORY_TOKEN` is set, StoryMaker uses the chapters saved in the character's folder as the
-story so far, so the next chapter still carries on from the last.
-
+StoryMaker finds the journals by itself in the game's `WTF\Account` folder.
 ## Privacy
 
 - The addon records only your own character's actions. Chat is never recorded; other players
@@ -216,11 +126,7 @@ story so far, so the next chapter still carries on from the last.
 |---|---|
 | `LunarJournal.toc`, `LunarJournal.lua` | the addon (Lua, interface 16001) |
 | `LunarLink.lua` | shared by the Lunar mods: minimap button, options page, LunarMods link. The original is in [LunarMods](https://github.com/Lundqwist/LunarMods) (`shared\LunarLink.lua`) |
-| `StoryMaker\` | the Windows program: .NET 8, WinForms. `Journal.cs` reads WoW's saved-variables files, `StoryPrompt.cs` is what every AI is told, `Writers.cs` holds the AIs (Claude through Anthropic's official C# SDK), `SiteClient.cs` the website API |
-| `StoryMaker\tools\make-icon.ps1` | draws the book icon |
 | `agent\`, `skill\` | an older way to write chapters with [Claude Code](https://claude.com/claude-code) instead of StoryMaker: `agent\journal.py` reads the journal, `skill\SKILL.md` is the `/wow-story` skill (`.\install-skill.ps1` installs it) |
-
-Settings and which sessions are told: `%APPDATA%\LunarJournal\StoryMaker.json`.
 
 The modern WoW client doesn't let addons read the combat log, so kills are counted from your
 target, focus, mouseover and nameplates: a unit counts when it dies after you were fighting it.
