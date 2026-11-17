@@ -213,9 +213,19 @@ local function Tick()
     elseif IsSwimming and IsSwimming() then mode = "swimming"
     elseif IsMounted() then mode = "riding"
     else mode = "running" end
-    if speed > 0 then
+    -- The game may hand out speed as a "secret" value (one addon code can't compare
+    -- or do sums with). Then fall back to IsPlayerMoving for time and skip distance.
+    local moving
+    if issecretvalue and issecretvalue(speed) then
+        local m = IsPlayerMoving and IsPlayerMoving()
+        moving = not issecretvalue(m) and m == true
+        speed = nil
+    else
+        moving = speed > 0
+    end
+    if moving then
         Add(session.time, mode, dt)
-        Add(session.dist, mode, speed * dt)
+        if speed then Add(session.dist, mode, speed * dt) end
     else
         Add(session.time, "idle", dt)
     end
