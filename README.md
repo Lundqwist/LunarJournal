@@ -45,8 +45,9 @@ The chapters are told by the character himself, many years later, remembering.
 
 1. Pick the **character** (every `LunarJournal.lua` under the game's `WTF\Account` folder).
 2. Tick the **play sessions** the chapter should cover (those not in the story yet are ticked).
-3. Pick the **AI**: Claude (Anthropic's official C# SDK), OpenAI, Gemini, or any OpenAI-compatible
-   server (Ollama, LM Studio, OpenRouter...), and the model. Optionally write wishes for the chapter.
+3. Pick the **AI** and the model: **Ollama** (free, runs on your own PC), Claude (Anthropic's official
+   C# SDK), OpenAI, Gemini, or any OpenAI-compatible server (LM Studio, OpenRouter...). Optionally
+   write wishes for the chapter.
 4. **Write chapter**: it reads the story so far from the site, sends it and the journal to the AI,
    and shows the chapter. Edit it as you like.
 5. **Post to lundqwist.se**: adds the chapter to the end of the story (the site keeps the old
@@ -56,7 +57,12 @@ The chapters are told by the character himself, many years later, remembering.
 StoryMaker\install.ps1        # builds it to %LOCALAPPDATA%\LunarJournal\StoryMaker, adds a Start menu shortcut
 ```
 
-Keys are never stored by the program, only the names of the Windows user environment variables
+**Free, with Ollama:** install [Ollama](https://ollama.com) (`winget install Ollama.Ollama`) and a
+model (`ollama pull gemma3:12b`, about 8 GB, fits a 12 GB graphics card). StoryMaker uses Ollama's own
+API so it can give the model a context large enough for the whole journal (Ollama's default would
+silently cut it). No key, no cost, nothing leaves the PC except the finished chapter.
+
+Keys for the paid AIs are never stored by the program, only the names of the Windows user environment variables
 that hold them (Settings shows which are found):
 
 ```powershell
