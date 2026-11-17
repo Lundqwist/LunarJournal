@@ -21,7 +21,9 @@ every chapter gets a page of its own.
 See it live: [Gilded Gobsong's story](https://lundqwist.se/wowcharacters/forever/chapter.html?c=gilded-gobsong&n=1)
 on lundqwist.se.
 
-![StoryMaker with a play session from the journal and the chapter written from it](Media/storymaker.png)
+![StoryMaker's front page: the Lundqwist emblem and a card for each character with a journal](Media/storymaker-home.png)
+
+![The chapter in StoryMaker's preview, with a screenshot from the game](Media/storymaker-preview.png)
 
 ![The chapter on the website](Media/chapter-page.png)
 
@@ -116,7 +118,9 @@ Needs **Windows 10 or 11** and the **[.NET 8 SDK](https://dotnet.microsoft.com/d
    **Lunar Journal StoryMaker** to the Start menu. Run it again to update; `-Remove` uninstalls it.
    (If Windows refuses to run the script, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once.)
 3. Start **Lunar Journal StoryMaker** from the Start menu and open **Settings...**:
-   - **Look**: light or dark (by default it follows Windows' own setting).
+   - **Look**: *Dark (lundqwist.se)*, navy and gold like [lundqwist.se](https://lundqwist.se), or a light
+     parchment look. By default it follows Windows' own light/dark setting.
+   - **Screenshots**: pictures are picked from the game's `_forever_\Screenshots` folder, next to `WTF`.
    - **WTF\Account folder**: your game's `_forever_\WTF\Account` folder, if it isn't in the
      default place.
    - The **website** and **AI** settings: see the next sections.
@@ -141,20 +145,33 @@ every chapter before it's posted.
 
 ## Writing and posting a chapter
 
-1. Play with the addon on, then log out or `/reload`.
-2. In StoryMaker, press **Read journals again** and pick your **character**.
+1. Play with the addon on, then log out or `/reload`. Take screenshots (Print Screen) of moments
+   you may want in the story.
+2. Start StoryMaker. The front page has a card for every character with a journal, saying how
+   many play sessions aren't in the story yet. Click one. (**Home** brings you back.)
 3. The **play sessions** not yet in the story are ticked. Untick any you want to leave out.
 4. Optionally write **wishes** for this chapter ("make it about the night at the Crossroads").
 5. Press **Write chapter**. StoryMaker reads the story so far from your website, so the new
    chapter carries on from the last one, and sends it and the journal to the AI.
-6. Read the chapter and edit it in the box as much as you like.
-7. Press **Post to lundqwist.se**. It becomes the story's next chapter, and the sessions you used
-   count as told. **Open the new chapter** shows it on the site.
+6. Read the chapter and edit it in the box as much as you like. It is [Markdown](https://commonmark.org/help/),
+   and the bar above it helps:
+   - **B**, **I**, **Title**, **Quote**, **Divider** (a row of gold stars between scenes), **Link...**
+   - **Picture...** shows your screenshots as thumbnails, newest first. Pick one and give it a caption;
+     it is shown under the picture.
+   - **Sound...** adds a sound (mp3, ogg, wav, m4a) with a caption; on the page it gets a player.
+   - **Preview** shows the chapter as it will look, pictures and sounds included. **Edit** goes back.
+
+   While you edit, pictures and sounds point at files on your PC, written as
+   `![caption](<D:/Blizzard/.../WoWScrnShot_111726_085709.jpg>)`. A "picture" that is a sound file is
+   a sound.
+7. Press **Post to lundqwist.se**. Pictures and sounds are uploaded first (screenshots made at most
+   1600 pixels wide), then the chapter becomes the story's next chapter and the sessions you used count
+   as told. **Open the new chapter** shows it on the site.
 
    Or press **Save as Markdown...** to keep it on your own PC. It suggests
    `Documents\Lunar Journal\<Character>\002 <title>.md`, numbered after the chapters already
-   saved there, but you can save it anywhere. It then asks whether the sessions you used should
-   count as told.
+   saved there, but you can save it anywhere. Its pictures and sounds are copied into a `media`
+   folder next to it. It then asks whether the sessions you used should count as told.
 
 ## Posting to a website
 
@@ -178,6 +195,7 @@ Another site can take the posts too, if it answers the same two calls (both with
 |---|---|
 | `GET {site}/api/forever/story?c=<character>` | `{ "markdown": "..." }`: the whole story so far |
 | `POST {site}/api/forever/story?c=<character>` with `{ "markdown": "..." }` | saves it as the next chapter, answers `{ "chapter": 3 }` |
+| `POST {site}/api/forever/media?c=<character>` with a multipart `file` | stores a picture or sound, answers `{ "url": "..." }` |
 
 **You don't need a website.** Without one, save each chapter with **Save as Markdown...**. When
 no `STORY_TOKEN` is set, StoryMaker uses the chapters saved in the character's folder as the
