@@ -37,15 +37,47 @@ Like the other Lunar mods it has its own minimap button and can be linked to
 
 Install: `.\install.ps1` (links this folder into the game's AddOns folder), then `/reload`.
 
-## Outside the game: the story
+## Outside the game: StoryMaker
 
-`agent\journal.py` reads the saved journal (it never writes to it) and gives the sessions that
+`StoryMaker\` is a Windows program (.NET 8, WinForms) that turns the journal into the character's
+story and posts it to his page on [lundqwist.se/wowcharacters](https://lundqwist.se/wowcharacters/forever/).
+The chapters are told by the character himself, many years later, remembering.
+
+1. Pick the **character** (every `LunarJournal.lua` under the game's `WTF\Account` folder).
+2. Tick the **play sessions** the chapter should cover (those not in the story yet are ticked).
+3. Pick the **AI**: Claude (Anthropic's official C# SDK), OpenAI, Gemini, or any OpenAI-compatible
+   server (Ollama, LM Studio, OpenRouter...), and the model. Optionally write wishes for the chapter.
+4. **Write chapter**: it reads the story so far from the site, sends it and the journal to the AI,
+   and shows the chapter. Edit it as you like.
+5. **Post to lundqwist.se**: adds the chapter to the end of the story (the site keeps the old
+   version in `stories\forever\.history`) and marks the ticked sessions as told.
+
+```powershell
+StoryMaker\install.ps1        # builds it to %LOCALAPPDATA%\LunarJournal\StoryMaker, adds a Start menu shortcut
+```
+
+Keys are never stored by the program, only the names of the Windows user environment variables
+that hold them (Settings shows which are found):
+
+```powershell
+setx ANTHROPIC_API_KEY "..."   # or OPENAI_API_KEY / GEMINI_API_KEY; a local AI needs none
+setx STORY_TOKEN "..."         # the same value as STORY_TOKEN in the site's .env
+```
+
+Posting uses the WowCharacters site's story API (`GET`/`POST /api/forever/story?c=<character>`,
+`Authorization: Bearer <STORY_TOKEN>`; see [WowCharacters](https://github.com/Lundqwist/WowCharacters)).
+The character must be in the site's `characters.json`; its key is the journal's folder name in lower
+case (`Lunamal-Sunshadow` → `lunamal-sunshadow`). Settings and which sessions are told:
+`%APPDATA%\LunarJournal\StoryMaker.json`.
+
+## Outside the game: the Claude Code skill
+
+An older way that needs no API key, only Claude Code: `agent\journal.py` reads the saved journal (it never writes to it) and gives the sessions that
 aren't in a story yet as JSON; `skill\SKILL.md` is a Claude Code skill, `/wow-story`, that
 writes the next chapter from that and appends it to the character's story file in the
 WowCharacters site's data folder (`Z:\wowcharacters\data\stories\forever\<character>.md`), where
-it is live at once.
-
-The chapters are told by the character himself, many years later, remembering.
+it is live at once. It keeps its own list of told sessions (`agent\told.json`), separate from
+StoryMaker's.
 
 ```powershell
 .\install-skill.ps1                      # once: links skill\ into ~\.claude\skills\wow-story

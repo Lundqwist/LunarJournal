@@ -1,3 +1,6 @@
 agent/told.json
 __pycache__/
 *.zip
+StoryMaker/bin/
+StoryMaker/obj/
+*.csproj.user
