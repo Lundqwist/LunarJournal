@@ -10,7 +10,7 @@ Made for **WoW Forever**. Type `/lj` or click the book button at the minimap.
 
 You play. Lunar Journal quietly writes down what happens: which quests you took and who gave them to you, the people you met, how long you ran, rode and fished, what you crafted, where you died and what killed you, and what time of day it was in Azeroth.
 
-The journal is made for **[StoryMaker](https://github.com/Lundqwist/StoryMaker)**, a free Windows program that hands it to an AI of your choosing, which writes a chapter of your character's life, told by the character himself, many years later, remembering. You read it, edit it if you like, and post it to your website or keep it on your PC.
+The journal is made for **[StoryMaker](https://apps.microsoft.com/store/detail/9NH0SVRFBMRV?cid=DevShareMCLPCS)**, a Windows program available on the **Microsoft Store**. It hands the journal to an AI of your choosing, which writes a chapter of your character's life, told by the character himself, many years later, remembering. You read it, edit it if you like, and post it to your website or keep it on your PC.
 
 See it live: [Gilded Gobsong's story](https://lundqwist.se/wowcharacters/forever/chapter.html?c=gilded-gobsong&n=1).
 
@@ -43,7 +43,7 @@ The game saves the journal when you **log out or type `/reload`**, per character
 
 ## Turning the journal into a story
 
-**[Download StoryMaker for Windows](https://github.com/Lundqwist/StoryMaker/releases/latest)**: a normal installer with .NET included, no admin rights needed. It works with a free AI on your own PC (Ollama), or with Claude, OpenAI or Gemini. You edit each chapter as Markdown, add screenshots from the game and sounds, and post it to your website or save it on your PC. How to set it up is in [StoryMaker's README](https://github.com/Lundqwist/StoryMaker#readme).
+**[Get StoryMaker from the Microsoft Store](https://apps.microsoft.com/store/detail/9NH0SVRFBMRV?cid=DevShareMCLPCS)**: install it like any other Store app, or search for "StoryMaker" in the Microsoft Store on your PC. The Store keeps it up to date. It works with a free AI on your own PC (Ollama), or with Claude, OpenAI or Gemini. You edit each chapter as Markdown, add screenshots from the game and sounds, and post it to your website or save it on your PC. How to set it up is in [StoryMaker's README](https://github.com/Lundqwist/StoryMaker#readme).
 
 ![StoryMaker's front page with a card for each character](https://raw.githubusercontent.com/Lundqwist/LunarJournal/main/Media/storymaker-home.png)
 
@@ -61,7 +61,7 @@ The game saves the journal when you **log out or type `/reload`**, per character
 ## Good to know
 
 - The modern WoW client doesn't let addons read the combat log, so kills are counted from your target, focus, mouseover and nameplates: a unit counts when it dies after you were fighting it.
-- Version 0.1.2 records fishing catches and crafts properly, and no longer stops with an error when the game hides your speed.
+- Sometimes the game hides a value from addons, such as an NPC's name or a quest text. Lunar Journal then saves the entry without it instead of stopping with an error. Version 0.1.3 fixed the error at quest turn-in.
 
 ## Source and bugs
 

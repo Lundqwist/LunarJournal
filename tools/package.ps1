@@ -1,6 +1,7 @@
 # Builds the CurseForge upload folder:
 #   curseforge\LunarJournal-<version>.zip   the file to upload (contains LunarJournal\...)
 #   curseforge\description.md               paste into the project description (Markdown editor)
+#   curseforge\changelog.md                 this version's notes from CHANGELOG.md, for the upload's Changelog box
 #   curseforge\avatar.png                   400x400 project avatar (from Media\icon.png)
 #   curseforge\screenshots\                 pictures for the Images tab (the PNGs in Media other than icon*)
 # Usage (from the repo root): .\tools\package.ps1
@@ -45,6 +46,16 @@ try {
 }
 
 Copy-Item (Join-Path $root "CURSEFORGE.md") (Join-Path $out "description.md") -Force
+
+# changelog: this version's section of CHANGELOG.md, for the upload's Changelog box
+$log = @(Get-Content (Join-Path $root "CHANGELOG.md"))
+$start = -1
+for ($i = 0; $i -lt $log.Count; $i++) { if ($log[$i] -match "^## $([regex]::Escape($version))(\s|$)") { $start = $i; break } }
+if ($start -lt 0) { throw "No '## $version' section in CHANGELOG.md" }
+$end = $start + 1
+while ($end -lt $log.Count -and $log[$end] -notmatch '^## ') { $end++ }
+$notes = ($log[$start..($end - 1)] -join "`r`n").Trim()
+[System.IO.File]::WriteAllText((Join-Path $out "changelog.md"), $notes + "`r`n", (New-Object System.Text.UTF8Encoding $false))
 
 # avatar: Media\icon.png scaled to 400x400
 Add-Type -AssemblyName System.Drawing

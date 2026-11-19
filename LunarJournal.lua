@@ -50,13 +50,22 @@ local function GameTime()
 end
 
 local function Zone()
-    local zone = GetRealZoneText and GetRealZoneText() or GetZoneText()
-    local sub = GetSubZoneText and GetSubZoneText() or ""
+    local zone = Plain(GetRealZoneText and GetRealZoneText() or GetZoneText())
+    local sub = Plain(GetSubZoneText and GetSubZoneText()) or ""
     if sub == zone then sub = "" end
     return zone or "", sub
 end
 
+-- The modern client may hand addons "secret" values (names, GUIDs, quest texts) that
+-- code can't read, compare, join or use as table keys. Plain() turns those into nil,
+-- so they're simply not written down.
+local function Plain(v)
+    if issecretvalue and issecretvalue(v) then return nil end
+    return v
+end
+
 local function Cut(text)
+    text = Plain(text)
     if type(text) ~= "string" or text == "" then return nil end
     text = text:gsub("\r", "")
     if #text > TEXT_LIMIT then text = text:sub(1, TEXT_LIMIT) .. "..." end
@@ -65,6 +74,7 @@ end
 
 -- the NPC id from a creature GUID ("Creature-0-1-2-3-<id>-<spawn>")
 local function NpcId(guid)
+    guid = Plain(guid)
     if type(guid) ~= "string" then return nil end
     local kind, _, _, _, _, id = strsplit("-", guid)
     if kind == "Creature" or kind == "Vehicle" then return tonumber(id) end
@@ -250,10 +260,10 @@ local finishing         -- the turn-in dialog that is open
 local function QuestTitle(id, index)
     if C_QuestLog and C_QuestLog.GetTitleForQuestID then
         local ok, title = pcall(C_QuestLog.GetTitleForQuestID, id)
-        if ok and title then return title end
+        if ok and Plain(title) then return title end
     end
     if index and GetQuestLogTitle then
-        local title = GetQuestLogTitle(index)
+        local title = Plain((GetQuestLogTitle(index)))
         if title then return title end
     end
     local q = DB.quests[id]
@@ -263,14 +273,14 @@ end
 local function QuestLevel(index)
     if index and GetQuestLogTitle then
         local _, level = GetQuestLogTitle(index)
-        return level
+        return Plain(level)
     end
 end
 
 local function OnQuestDetail()
-    local title = GetTitleText()
+    local title = Plain(GetTitleText())
     if not title then return end
-    local npc = UnitName("npc")
+    local npc = Plain(UnitName("npc"))
     offered[title] = {
         npc = npc,
         npcId = NpcId(UnitGUID("npc")),
@@ -306,8 +316,8 @@ end
 
 local function OnQuestComplete()
     finishing = {
-        title = GetTitleText(),
-        npc = UnitName("npc"),
+        title = Plain(GetTitleText()),
+        npc = Plain(UnitName("npc")),
         npcId = NpcId(UnitGUID("npc")),
         text = S.questText and Cut(GetRewardText()) or nil,
     }
@@ -329,7 +339,7 @@ local function OnQuestTurnedIn(id, xp, money)
 end
 
 local function OnAbandon()
-    local title = GetAbandonQuestName and GetAbandonQuestName()
+    local title = GetAbandonQuestName and Plain(GetAbandonQuestName())
     if not title then return end
     for id, q in pairs(DB.quests) do
         if q.title == title and not q.done then q.abandoned = time() end
@@ -341,7 +351,7 @@ end
 -- People
 ----------------------------------------------------------------------------------------
 local function MetNpc(kind)
-    local name = UnitName("npc")
+    local name = Plain(UnitName("npc"))
     if not name or UnitIsPlayer("npc") or not session or S.paused then return end
     Add(session.npcs, name)
     Log("npc", { name = name, id = NpcId(UnitGUID("npc")), as = kind })
@@ -356,13 +366,12 @@ local function OnGroupChanged()
     for i = 1, n do
         local unit = prefix .. i
         if UnitExists(unit) and not UnitIsUnit(unit, "player") then
-            local name = GetUnitName(unit, true)
+            local name = Plain(GetUnitName(unit, true))
             if name then
                 seen[name] = true
                 if not partyNow[name] then
-                    local _, class = UnitClass(unit)
                     session.players[name] = session.players[name] or "grouped"
-                    Log("group_join", { name = name, class = (UnitClass(unit)), race = UnitRace(unit), level = UnitLevel(unit) })
+                    Log("group_join", { name = name, class = Plain((UnitClass(unit))), race = Plain(UnitRace(unit)), level = Plain(UnitLevel(unit)) })
                 end
             end
         end
@@ -898,13 +907,14 @@ On("CONFIRM_BINDER", function() MetNpc("innkeeper") end)
 
 On("GROUP_ROSTER_UPDATE", OnGroupChanged)
 On("TRADE_SHOW", function()
-    local name = UnitName("NPC")
+    local name = Plain(UnitName("NPC"))
     if name and session then
         session.players[name] = session.players[name] or "traded"
         Log("trade", { name = name })
     end
 end)
 On("DUEL_REQUESTED", function(name)
+    name = Plain(name)
     if name and session then
         session.players[name] = session.players[name] or "duel"
         Log("duel", { name = name })
