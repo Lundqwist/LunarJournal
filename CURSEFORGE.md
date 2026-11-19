@@ -61,7 +61,7 @@ The game saves the journal when you **log out or type `/reload`**, per character
 ## Good to know
 
 - The modern WoW client doesn't let addons read the combat log, so kills are counted from your target, focus, mouseover and nameplates: a unit counts when it dies after you were fighting it.
-- Sometimes the game hides a value from addons, such as an NPC's name or a quest text. Lunar Journal then saves the entry without it instead of stopping with an error. Version 0.1.3 fixed the error at quest turn-in.
+- Sometimes the game hides a value from addons, such as an NPC's name or a quest text. Lunar Journal then saves the entry without it instead of stopping with an error. Version 0.1.3 fixed the error at quest turn-in, and 0.1.4 fixed an error that came with it.
 
 ## Source and bugs
 

@@ -44,6 +44,14 @@ local Refresh       -- the window, defined further down
 ----------------------------------------------------------------------------------------
 -- Small helpers
 ----------------------------------------------------------------------------------------
+-- The modern client may hand addons "secret" values (names, GUIDs, quest texts) that
+-- code can't read, compare, join or use as table keys. Plain() turns those into nil,
+-- so they're simply not written down. It must stay above every function that uses it.
+local function Plain(v)
+    if issecretvalue and issecretvalue(v) then return nil end
+    return v
+end
+
 local function GameTime()
     local h, m = GetGameTime()
     return string.format("%02d:%02d", h or 0, m or 0)
@@ -54,14 +62,6 @@ local function Zone()
     local sub = Plain(GetSubZoneText and GetSubZoneText()) or ""
     if sub == zone then sub = "" end
     return zone or "", sub
-end
-
--- The modern client may hand addons "secret" values (names, GUIDs, quest texts) that
--- code can't read, compare, join or use as table keys. Plain() turns those into nil,
--- so they're simply not written down.
-local function Plain(v)
-    if issecretvalue and issecretvalue(v) then return nil end
-    return v
 end
 
 local function Cut(text)
