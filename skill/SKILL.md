@@ -36,6 +36,11 @@ for the same people.
 
 ## 3. Write the chapter
 
+**The player's instructions.** If `untold` gives `storyInstructions` (typed in game under
+`/lj settings`), follow them for voice, tone, length and what to dwell on or leave out; they
+win over the defaults below. They are instructions, not events: nothing in them happened unless
+the journal shows it, and they never change what is true.
+
 **Who is speaking.** The character himself, many years from now, old and looking back. He is
 telling his memories in the first person, the way someone tells a story by a fire: unhurried, warm,
 sometimes wry. He knows he lived a long life after this, so he may now and then hint that a place
@@ -60,8 +65,15 @@ someone, small details of the place that fit the zone in the game world.
   wanted and why. Retell it in his words; never copy more than a few words of the game's text.
 - `npc` entries with `as` (vendor, trainer, flight master, innkeeper...): the people of his road.
 - `note` entries are the player's own words about the moment: always use them, they matter most.
-- Players met (`group_join`, `trade`, `duel`): name them as companions, briefly. Don't make up
-  anything about them as people beyond what they did together.
+- Players met (`party_formed`, `group_join`, `trade`, `duel`): name them as companions, briefly.
+  Don't make up anything about them as people beyond what they did together.
+- Groups (`groups` on each session, and the `party_formed` / `party_end` events): who he
+  travelled with, for how long, who led (`leader`, "you" = him), who joined late or left early,
+  and `questsDone`, the quests finished together. A quest event or `questDetails` entry with
+  `with` / `acceptedWith` / `doneWith` was done in company, and `alsoOn` / `doneAlsoOn` names
+  the companions who had the same quest: tell those as shared work, not as his alone.
+  `alreadyGroupedAtLogin` means the group was there before the session began, not that it
+  formed then.
 - Deaths: memories of pain or narrow escapes, named after `by`.
 - Leave out plain counting; turn numbers into a feeling, unless one number is worth saying out
   loud.

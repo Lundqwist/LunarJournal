@@ -22,6 +22,7 @@ For every play session, each entry with the real date and time and the in-game t
 
 - **Quests**: who offered them and where, with the quest text; when you accepted them; who you turned them in to, with the XP and money; abandoned quests.
 - **People**: NPCs you talk to (quest givers, vendors, trainers, flight masters, innkeepers, bankers, auctioneers, stable masters), and players you group with, trade with or duel.
+- **Groups**: when a party or raid forms and breaks up, who is in it (and when each joins and leaves), who leads it, and which quests you accept and turn in while grouped, with the members who had the same quest.
 - **Time and distance**: running, riding, swimming, on flight paths, as a ghost, in combat, idle and resting; yards covered; time in each zone.
 - **Professions**: time fishing and what you caught, time crafting and what you made, gathering (mining, herbalism, skinning) and what you got.
 - **Moments**: level ups, deaths and what killed you, hearthstone trips, flights, rare and elite kills, rare and better loot, money gained and spent, screenshots.
@@ -34,10 +35,11 @@ For every play session, each entry with the real date and time and the in-game t
 | `/lj` | Show or hide the journal window: this session's summary and the latest entries |
 | `/lj note <text>` | Write your own line in the journal |
 | `/lj pause` | Pause or resume the journal |
+| `/lj settings` | The settings window: what to write down, and how the story should be told |
 | `/lj options` | The options page (also under Options → AddOns → Lunar Journal) |
 | `/lj forget yes` | Delete this character's whole journal |
 
-The options can switch off saving quest texts or counting kills, and can print a chat line for every entry. Left-click the minimap button to open the journal, right-click it for the options, drag it to move it.
+The settings window has a checkbox for each kind of thing the journal writes down (quests, quest texts, NPCs, groups, trades and duels, movement, zones, professions, kills, deaths, level ups, loot, money, screenshots). Under them is a text box for this character's story instructions, saved apart from the journal entries so a story writer such as StoryMaker reads them as instructions. The options page can print a chat line for every entry. Left-click the minimap button to open the journal, right-click it for the options, drag it to move it.
 
 The game saves the journal when you **log out or type `/reload`**, per character, in `WTF\Account\<account>\<realm>\<Character>\SavedVariables\LunarJournal.lua`. StoryMaker finds it there by itself.
 

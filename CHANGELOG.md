@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 (2026-11-21)
+
+- Groups: the journal now writes down every party and raid you are in: when it formed and broke up, who was in it, when each member joined and left, and who led it. The journal window shows "Group formed with ..." and "Group broke up after ...".
+- Quests done in a group: accepted and turned-in quests note who you were grouped with and which of them had the same quest. Each group lists the quests turned in while it lasted.
+- After a /reload the group carries on instead of everyone being written down as joining again.
+- New settings window (`/lj settings`, or the Settings button in the journal window): a checkbox for each kind of thing the journal writes down, and a text box for how this character's story should be told. The story instructions are saved apart from the journal entries, so StoryMaker gives them to the AI as instructions. The old "Save the quest texts" and "Count kills" options moved there and keep their setting.
+
 ## 0.1.4 (2026-11-19)
 
 - Fixed: 0.1.3 showed the error "LunarJournal.lua:53: attempt to call a nil value" every second, and zone names weren't saved. Zone names, time per zone and zone changes are recorded again.

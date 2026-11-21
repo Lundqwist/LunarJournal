@@ -171,6 +171,31 @@ def when(t):
     return datetime.fromtimestamp(t).strftime("%Y-%m-%d %H:%M") if isinstance(t, (int, float)) else None
 
 
+def tidy_party(p):
+    """One group: who was in it, when, and the quests done together."""
+    members = {}
+    for name, m in (p.get("members") or {}).items():
+        m = dict(m) if isinstance(m, dict) else {}
+        m["joined"] = when(m.get("joined"))
+        if "left" in m:
+            m["left"] = when(m.get("left"))
+        members[name] = m
+    start, stop = p.get("start"), p.get("stop")
+    return {
+        "start": when(start),
+        "stop": when(stop),
+        "realMinutes": round((stop - start) / 60) if isinstance(start, (int, float)) and isinstance(stop, (int, float)) else None,
+        "raid": bool(p.get("raid")),
+        "leader": p.get("leader"),  # "you" = the character himself
+        "alreadyGroupedAtLogin": bool(p.get("atLogin")),
+        "zone": p.get("zone"),
+        "subZone": p.get("subZone"),
+        "members": members,
+        "questsAccepted": p.get("questsAccepted") or [],
+        "questsDone": p.get("questsDone") or [],
+    }
+
+
 def tidy_session(s, quests):
     """One session, with times in minutes and the quests it touched filled in."""
     ids = {e.get("id") for e in s.get("events", []) if str(e.get("k", "")).startswith("quest_") and e.get("id")}
@@ -198,6 +223,7 @@ def tidy_session(s, quests):
         "gathered": s.get("gathered"),
         "npcsTalkedTo": s.get("npcs"),
         "playersMet": s.get("players"),
+        "groups": [tidy_party(p) for p in s.get("parties") or []],
         "moneyGainedCopper": s.get("moneyGained"),
         "moneySpentCopper": s.get("moneySpent"),
         "questDetails": {str(i): quests.get(str(i)) for i in ids if quests.get(str(i))},
@@ -246,6 +272,8 @@ def main(argv):
             "info": db.get("character"),
             "savedAt": when(os.path.getmtime(path)),
             "alreadyToldUpTo": when(last) if last else None,
+            # how the player wants the story told (/lj settings in game): instructions, not events
+            "storyInstructions": (db.get("storyInstructions") or "").strip() or None,
             "sessions": sessions,
         }, ensure_ascii=False, indent=1))
         return 0

@@ -1,8 +1,8 @@
 ## Interface: 16001
 ## Title: Lunar Journal
-## Notes: Keeps a journal of your adventures: quests and who gave them, people you met, time spent running, riding, fishing, crafting and gathering, with the in-game time. /lj
+## Notes: Keeps a journal of your adventures: quests and who gave them, people you met, groups and the quests done together, time spent running, riding, fishing, crafting and gathering, with the in-game time. /lj
 ## Author: Lundqwist
-## Version: 0.1.4
+## Version: 0.2.0
 ## IconTexture: Interface\Icons\INV_Misc_Book_09
 ## SavedVariables: LunarJournalSettings
 ## SavedVariablesPerCharacter: LunarJournalDB

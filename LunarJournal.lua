@@ -8,6 +8,9 @@
 --     XP and money), abandoned
 --   * people met: NPCs talked to (quest givers, vendors, trainers, flight masters,
 --     innkeepers, bankers), players grouped with, traded with or duelled
+--   * groups: when a party or raid formed and broke up, who was in it (and when each
+--     joined and left), who led it, and which quests were accepted and turned in
+--     together (and which members had the same quest)
 --   * time spent running, riding, swimming, on flight paths, dead, in combat, idle,
 --     and the distance covered; time spent fishing, crafting and gathering, and what
 --     came of it (fish caught, items made, herbs and ore gathered)
@@ -31,10 +34,43 @@ local TEXT_LIMIT = 900           -- quest texts are cut to this length
 
 local DEFAULT_SETTINGS = {
     paused = false,
-    questText = true,
-    kills = true,
     echo = false,
 }
+
+-- What can be switched off in the settings window (/lj settings). Stored in
+-- LunarJournalSettings.record (account-wide); missing = on.
+local RECORD = {
+    { key = "quests",      label = "Quests: offered, accepted, turned in" },
+    { key = "questText",   label = "Quest texts (what the quest giver said)" },
+    { key = "npcs",        label = "NPCs you talk to" },
+    { key = "groups",      label = "Groups: who you played with" },
+    { key = "players",     label = "Trades and duels" },
+    { key = "travel",      label = "Running, riding, flights, distance, idle time" },
+    { key = "zones",       label = "Zones and the time in each" },
+    { key = "professions", label = "Fishing, crafting and gathering" },
+    { key = "kills",       label = "Kills" },
+    { key = "deaths",      label = "Deaths" },
+    { key = "levels",      label = "Level ups" },
+    { key = "loot",        label = "Rare loot" },
+    { key = "money",       label = "Money gained and spent" },
+    { key = "screenshots", label = "Screenshots" },
+}
+
+-- which setting each kind of entry belongs to (notes and logins are always written)
+local KIND = {
+    quest_offered = "quests", quest_accepted = "quests", quest_done = "quests", quest_abandoned = "quests",
+    npc = "npcs",
+    party_formed = "groups", party_end = "groups", party_raid = "groups", party_leader = "groups",
+    group_join = "groups", group_leave = "groups",
+    trade = "players", duel = "players",
+    flight_start = "travel", flight_end = "travel", hearthstone = "travel",
+    zone = "zones",
+    craft = "professions", fish = "professions", gather = "professions",
+    kill = "kills", death = "deaths", revived = "deaths", level = "levels",
+    loot = "loot", screenshot = "screenshots",
+}
+
+local INSTRUCTIONS_LIMIT = 4000  -- letters in the story instructions
 
 local DB            -- per character: LunarJournalDB
 local S             -- account-wide settings: LunarJournalSettings
@@ -109,6 +145,11 @@ local function Money(copper)
     return c .. "c"
 end
 
+-- is this kind of thing being written down? (see RECORD)
+local function Rec(key)
+    return not S.paused and not (S.record and S.record[key] == false)
+end
+
 local function Say(text)
     DEFAULT_CHAT_FRAME:AddMessage("|cffc8a2ffLunar Journal|r: " .. text)
 end
@@ -155,12 +196,14 @@ local function NewSession()
         gathered = {},    -- item -> count
         npcs = {},        -- NPC name -> times talked to
         players = {},     -- player name -> how we met
+        parties = {},     -- groups: start, stop, members, leader, questsAccepted, questsDone
         events = {},
     }
 end
 
 local function Log(kind, fields)
     if not session or S.paused then return end
+    if KIND[kind] and not Rec(KIND[kind]) then return end
     local zone, sub = Zone()
     local e = fields or {}
     e.k = kind
@@ -200,6 +243,8 @@ local function EndSession()
     session.stop = time()
     session.level = UnitLevel("player")
     session.moneyEnd = GetMoney()
+    local open = session.partyOpen and session.parties and session.parties[session.partyOpen]
+    if open then open.stop = session.stop end
     -- drop empty blink-sessions (logged in and straight out again)
     if session.stop - session.start < 30 and #session.events <= 1 and DB.sessions[#DB.sessions] == session then
         DB.sessions[#DB.sessions] = nil
@@ -233,22 +278,176 @@ local function Tick()
     else
         moving = speed > 0
     end
-    if moving then
-        Add(session.time, mode, dt)
-        if speed then Add(session.dist, mode, speed * dt) end
-    else
-        Add(session.time, "idle", dt)
+    if Rec("travel") then
+        if moving then
+            Add(session.time, mode, dt)
+            if speed then Add(session.dist, mode, speed * dt) end
+        else
+            Add(session.time, "idle", dt)
+        end
+        if UnitAffectingCombat("player") then Add(session.time, "combat", dt) end
+        if IsResting() then Add(session.time, "resting", dt) end
     end
-    if UnitAffectingCombat("player") then Add(session.time, "combat", dt) end
-    if IsResting() then Add(session.time, "resting", dt) end
-    local zone = Zone()
-    Add(session.zones, zone, dt)
+    if Rec("zones") then Add(session.zones, (Zone()), dt) end
     session.stop = time()
 
     if onTaxi ~= wasOnTaxi then
         wasOnTaxi = onTaxi
         Log(onTaxi and "flight_start" or "flight_end")
     end
+end
+
+----------------------------------------------------------------------------------------
+-- Groups: every party (or raid) is written down in session.parties, from the moment it
+-- forms until it breaks up: who was in it and when they joined and left, who led it,
+-- and the quests accepted and turned in while it lasted.
+----------------------------------------------------------------------------------------
+local partyNow = {}     -- name -> true for everyone in the group right now (not you)
+local party             -- the group you are in: an entry in session.parties
+
+-- calls fn(unit, name) for everyone else in the group
+local function ForGroup(fn)
+    local n = GetNumGroupMembers and GetNumGroupMembers() or 0
+    local prefix = IsInRaid and IsInRaid() and "raid" or "party"
+    for i = 1, n do
+        local unit = prefix .. i
+        if UnitExists(unit) and not UnitIsUnit(unit, "player") then
+            local name = Plain(GetUnitName(unit, true))
+            if name then fn(unit, name) end
+        end
+    end
+end
+
+local function Sorted(map)
+    local list = {}
+    for k in pairs(map or {}) do list[#list + 1] = k end
+    table.sort(list)
+    return list
+end
+
+local function IsLeader(unit)
+    if not UnitIsGroupLeader then return false end
+    local ok, yes = pcall(UnitIsGroupLeader, unit)
+    return ok and Plain(yes) == true
+end
+
+local function InGroup()
+    if IsInGroup then return IsInGroup() end
+    return (GetNumGroupMembers and GetNumGroupMembers() or 0) > 0
+end
+
+local function CloseParty()
+    if not party then return end
+    party.stop = time()
+    Log("party_end", {
+        members = Sorted(party.members),
+        minutes = math.floor((party.stop - party.start) / 60),
+        questsDone = #party.questsDone,
+    })
+    party = nil
+    session.partyOpen = nil
+end
+
+local function OnGroupChanged()
+    if not session or not Rec("groups") then return end
+    session.parties = session.parties or {}
+    -- after a /reload the open party is still in the session: carry on with it
+    if not party and session.partyOpen then
+        party = session.parties[session.partyOpen]
+        partyNow = {}
+        for name, m in pairs(party and party.members or {}) do
+            if not m.left then partyNow[name] = true end
+        end
+    end
+    if not InGroup() then
+        CloseParty()
+        partyNow = {}
+        return
+    end
+    local seen, units = {}, {}
+    ForGroup(function(unit, name) seen[name] = true; units[name] = unit end)
+    if not next(seen) then return end   -- in a group, but the game hasn't listed it yet
+
+    local raid = IsInRaid and IsInRaid() or false
+    local function Member(name)
+        local unit = units[name]
+        session.players[name] = session.players[name] or "grouped"
+        return {
+            class = Plain((UnitClass(unit))),
+            race = Plain(UnitRace(unit)),
+            level = Plain(UnitLevel(unit)),
+            joined = time(),
+        }
+    end
+    local leader = IsLeader("player") and "you" or nil
+    if not leader then
+        for name, unit in pairs(units) do if IsLeader(unit) then leader = name end end
+    end
+
+    if not party then
+        local zone, sub = Zone()
+        party = {
+            start = time(), stop = time(),
+            raid = raid or nil,
+            leader = leader,
+            zone = zone, subZone = sub ~= "" and sub or nil,
+            atLogin = (time() - session.start < 20) or nil,   -- already grouped when you logged in
+            members = {},
+            questsAccepted = {},
+            questsDone = {},
+        }
+        for name in pairs(seen) do party.members[name] = Member(name) end
+        session.parties[#session.parties + 1] = party
+        session.partyOpen = #session.parties
+        Log("party_formed", { members = Sorted(seen), leader = leader, raid = raid or nil, atLogin = party.atLogin })
+    else
+        for name in pairs(seen) do
+            if not partyNow[name] then
+                local m = party.members[name]
+                if m then
+                    m.left = nil          -- came back
+                else
+                    m = Member(name)
+                    party.members[name] = m
+                end
+                Log("group_join", { name = name, class = m.class, race = m.race, level = m.level })
+            end
+        end
+        for name in pairs(partyNow) do
+            if not seen[name] then
+                if party.members[name] then party.members[name].left = time() end
+                Log("group_leave", { name = name })
+            end
+        end
+        if raid and not party.raid then
+            party.raid = true
+            Log("party_raid")
+        end
+        if leader and leader ~= party.leader then
+            party.leader = leader
+            Log("party_leader", { name = leader })
+        end
+    end
+    partyNow = seen
+    party.stop = time()
+end
+
+-- who you're grouped with now, and which of them also have this quest
+local function QuestCompany(id)
+    if not party or not next(partyNow) then return nil end
+    local with = Sorted(partyNow)
+    local also
+    if type(id) == "number" and C_QuestLog and C_QuestLog.IsUnitOnQuest then
+        ForGroup(function(unit, name)
+            local ok, yes = pcall(C_QuestLog.IsUnitOnQuest, unit, id)
+            if ok and Plain(yes) == true then
+                also = also or {}
+                also[#also + 1] = name
+            end
+        end)
+        if also then table.sort(also) end
+    end
+    return with, also
 end
 
 ----------------------------------------------------------------------------------------
@@ -278,14 +477,15 @@ local function QuestLevel(index)
 end
 
 local function OnQuestDetail()
+    if not Rec("quests") then return end
     local title = Plain(GetTitleText())
     if not title then return end
     local npc = Plain(UnitName("npc"))
     offered[title] = {
         npc = npc,
         npcId = NpcId(UnitGUID("npc")),
-        text = S.questText and Cut(GetQuestText()) or nil,
-        objective = S.questText and Cut(GetObjectiveText()) or nil,
+        text = Rec("questText") and Cut(GetQuestText()) or nil,
+        objective = Rec("questText") and Cut(GetObjectiveText()) or nil,
     }
     Log("quest_offered", { title = title, npc = npc })
 end
@@ -294,7 +494,7 @@ local function OnQuestAccepted(a1, a2)
     -- Classic clients give (questLogIndex, questID), newer ones only questID
     local index, id = a1, a2
     if not id then id, index = a1, nil end
-    if type(id) ~= "number" then return end
+    if type(id) ~= "number" or not Rec("quests") then return end
     local title = QuestTitle(id, index)
     local o = title and offered[title] or {}
     local zone, sub = Zone()
@@ -309,23 +509,35 @@ local function OnQuestAccepted(a1, a2)
     q.objective = o.objective or q.objective
     q.accepted = time()
     q.abandoned = nil
+    local with, also = QuestCompany(id)
+    q.acceptedWith = with
+    q.acceptedAlsoOn = also
     DB.quests[id] = q
     if title then offered[title] = nil end
-    Log("quest_accepted", { id = id, title = q.title, npc = q.giver, level = q.level })
+    if with and q.title then table.insert(party.questsAccepted, q.title) end
+    Log("quest_accepted", { id = id, title = q.title, npc = q.giver, level = q.level, with = with, alsoOn = also })
 end
 
 local function OnQuestComplete()
+    if not Rec("quests") then return end
+    local id = GetQuestID and Plain(GetQuestID())
+    local with, also = QuestCompany(id)
     finishing = {
+        id = id,
         title = Plain(GetTitleText()),
         npc = Plain(UnitName("npc")),
         npcId = NpcId(UnitGUID("npc")),
-        text = S.questText and Cut(GetRewardText()) or nil,
+        text = Rec("questText") and Cut(GetRewardText()) or nil,
+        with = with,
+        alsoOn = also,   -- read now: once turned in, the quest is gone from the log
     }
 end
 
 local function OnQuestTurnedIn(id, xp, money)
+    if not Rec("quests") then finishing = nil return end
     local q = DB.quests[id] or {}
     local f = finishing or {}
+    if f.id and f.id ~= id then f = {} end
     q.title = q.title or f.title or QuestTitle(id)
     q.done = time()
     q.turnedInTo = f.npc
@@ -333,14 +545,19 @@ local function OnQuestTurnedIn(id, xp, money)
     q.rewardText = f.text
     q.xp = xp
     q.money = money
+    local with, also = f.with, f.alsoOn
+    if not f.title then with, also = QuestCompany(id) end
+    q.doneWith = with
+    q.doneAlsoOn = also
     DB.quests[id] = q
     finishing = nil
-    Log("quest_done", { id = id, title = q.title, npc = f.npc, xp = xp, money = money })
+    if with and party and q.title then table.insert(party.questsDone, q.title) end
+    Log("quest_done", { id = id, title = q.title, npc = f.npc, xp = xp, money = money, with = with, alsoOn = also })
 end
 
 local function OnAbandon()
     local title = GetAbandonQuestName and Plain(GetAbandonQuestName())
-    if not title then return end
+    if not title or not Rec("quests") then return end
     for id, q in pairs(DB.quests) do
         if q.title == title and not q.done then q.abandoned = time() end
     end
@@ -352,34 +569,9 @@ end
 ----------------------------------------------------------------------------------------
 local function MetNpc(kind)
     local name = Plain(UnitName("npc"))
-    if not name or UnitIsPlayer("npc") or not session or S.paused then return end
+    if not name or UnitIsPlayer("npc") or not session or not Rec("npcs") then return end
     Add(session.npcs, name)
     Log("npc", { name = name, id = NpcId(UnitGUID("npc")), as = kind })
-end
-
-local partyNow = {}
-local function OnGroupChanged()
-    if not session then return end
-    local seen = {}
-    local n = GetNumGroupMembers and GetNumGroupMembers() or 0
-    local prefix = IsInRaid and IsInRaid() and "raid" or "party"
-    for i = 1, n do
-        local unit = prefix .. i
-        if UnitExists(unit) and not UnitIsUnit(unit, "player") then
-            local name = Plain(GetUnitName(unit, true))
-            if name then
-                seen[name] = true
-                if not partyNow[name] then
-                    session.players[name] = session.players[name] or "grouped"
-                    Log("group_join", { name = name, class = Plain((UnitClass(unit))), race = Plain(UnitRace(unit)), level = Plain(UnitLevel(unit)) })
-                end
-            end
-        end
-    end
-    for name in pairs(partyNow) do
-        if not seen[name] then Log("group_leave", { name = name }) end
-    end
-    partyNow = seen
 end
 
 ----------------------------------------------------------------------------------------
@@ -441,6 +633,8 @@ local function OnCastSucceeded(unit, _, spellId)
     if not name then return end
     if spellId == 8690 then
         Log("hearthstone", { to = GetBindLocation and GetBindLocation() })
+    elseif not Rec("professions") then
+        -- not written down
     elseif GATHER[name] then
         Add(session.time, "gathering", castStart and castName == name and (GetTime() - castStart) or 2)
         Add(session, "gatherCasts")
@@ -470,8 +664,10 @@ end
 
 local function OnChannelStop(unit)
     if unit ~= "player" or not activity.fishing or not session then return end
-    Add(session.time, "fishing", GetTime() - activity.fishing)
-    Add(session, "fishingCasts")
+    if Rec("professions") then
+        Add(session.time, "fishing", GetTime() - activity.fishing)
+        Add(session, "fishingCasts")
+    end
     activity.fishing = nil
     -- if the catch was already looted, there's nothing more to wait for
     fishStoppedAt = (GetTime() - fishLootedAt < 2) and 0 or GetTime()
@@ -489,7 +685,7 @@ end
 
 -- LOOT_READY and LOOT_OPENED both come for one loot window; write it down once
 local function OnLootOpened()
-    if not session or lootHandled then return end
+    if not session or lootHandled or not Rec("professions") then return end
     local from
     if IsFishing() then from = "fishing"
     elseif lootFrom and GetTime() < lootFromUntil then from = lootFrom end
@@ -536,7 +732,7 @@ local function Secret(v)
 end
 
 local function WatchUnit(unit)
-    if not session or not S.kills or not UnitExists(unit) or UnitIsUnit(unit, "player") then return end
+    if not session or not Rec("kills") or not UnitExists(unit) or UnitIsUnit(unit, "player") then return end
     local guid = UnitGUID(unit)
     if not guid or Secret(guid) or UnitIsFriend("player", unit) then return end
     if UnitIsDead(unit) then
@@ -616,7 +812,7 @@ local lastMoney
 local function OnMoney()
     if not session then return end
     local now = GetMoney()
-    if lastMoney then
+    if lastMoney and Rec("money") then
         local d = now - lastMoney
         if d > 0 then session.moneyGained = session.moneyGained + d
         elseif d < 0 then session.moneySpent = session.moneySpent - d end
@@ -651,6 +847,11 @@ local function SessionLines()
         string.format("This session: |cffffffff%s|r (started %s, in-game %s)", Duration(s.stop - s.start), date("%H:%M", s.start), s.startGameTime),
         string.format("Quests: |cffffffff%d|r accepted, |cffffffff%d|r turned in", acc, done),
         string.format("People: |cffffffff%d|r NPCs talked to, |cffffffff%d|r players met", Keys(s.npcs), Keys(s.players)),
+        (function()
+            local groups, together = #(s.parties or {}), 0
+            for _, p in ipairs(s.parties or {}) do together = together + #(p.questsDone or {}) end
+            return string.format("Groups: |cffffffff%d|r, |cffffffff%d|r quests turned in together", groups, together)
+        end)(),
         string.format("Running |cffffffff%s|r (%d yd), riding |cffffffff%s|r, swimming |cffffffff%s|r, flying |cffffffff%s|r",
             Duration(t.running), (d.running or 0), Duration(t.riding), Duration(t.swimming), Duration(t.taxi)),
         string.format("Fishing |cffffffff%s|r (%d caught), crafting |cffffffff%s|r (%d made), gathering |cffffffff%s|r",
@@ -665,8 +866,16 @@ end
 local DESCRIBE = {
     login = function(e) return "Logged in (level " .. (e.level or "?") .. ")" end,
     quest_offered = function(e) return "Offered |cffffd100" .. (e.title or "?") .. "|r by " .. (e.npc or "?") end,
-    quest_accepted = function(e) return "Accepted |cffffd100" .. (e.title or "?") .. "|r" end,
-    quest_done = function(e) return "Turned in |cffffd100" .. (e.title or "?") .. "|r" .. (e.npc and (" to " .. e.npc) or "") end,
+    quest_accepted = function(e) return "Accepted |cffffd100" .. (e.title or "?") .. "|r" .. (e.with and (" with " .. table.concat(e.with, ", ")) or "") end,
+    quest_done = function(e) return "Turned in |cffffd100" .. (e.title or "?") .. "|r" .. (e.npc and (" to " .. e.npc) or "") .. (e.with and (" with " .. table.concat(e.with, ", ")) or "") end,
+    party_formed = function(e)
+        local who = table.concat(e.members or {}, ", ")
+        if e.atLogin then return "In a " .. (e.raid and "raid" or "group") .. " with " .. who end
+        return (e.raid and "Raid" or "Group") .. " formed with " .. who .. (e.leader and e.leader ~= "you" and (", led by " .. e.leader) or "")
+    end,
+    party_end = function(e) return "Group broke up after " .. Duration((e.minutes or 0) * 60) .. ", " .. (e.questsDone or 0) .. " quests done together" end,
+    party_raid = function() return "The group became a raid" end,
+    party_leader = function(e) return (e.name == "you" and "You" or (e.name or "?")) .. " now lead" .. (e.name == "you" and "" or "s") .. " the group" end,
     quest_abandoned = function(e) return "Abandoned " .. (e.title or "?") end,
     npc = function(e) return "Talked to " .. (e.name or "?") .. " (" .. (e.as or "?") .. ")" end,
     group_join = function(e) return "Grouped with " .. (e.name or "?") end,
@@ -740,7 +949,7 @@ Refresh = function()
     summaryText:SetText(table.concat(SessionLines(), "\n"))
     local lines = {}
     if session then
-        for i = #session.events, math.max(1, #session.events - 13), -1 do
+        for i = #session.events, math.max(1, #session.events - 12), -1 do
             local e = session.events[i]
             lines[#lines + 1] = "|cff999999" .. date("%H:%M", e.t) .. " (" .. (e.g or "") .. ")|r  " .. Describe(e)
         end
@@ -752,6 +961,125 @@ frame:SetScript("OnShow", Refresh)
 local function ToggleWindow()
     frame:SetShown(not frame:IsShown())
 end
+
+----------------------------------------------------------------------------------------
+-- Settings window (/lj settings): what to write down, and the story instructions.
+-- The instructions are this character's own (LunarJournalDB.storyInstructions), kept
+-- apart from the journal entries, so StoryMaker and the story skill read them as how
+-- the story should be told, not as something that happened.
+----------------------------------------------------------------------------------------
+local settingsFrame = CreateFrame("Frame", "LunarJournalSettingsFrame", UIParent, "BasicFrameTemplateWithInset")
+settingsFrame:SetSize(560, 560)
+settingsFrame:SetPoint("CENTER")
+settingsFrame:SetMovable(true)
+settingsFrame:EnableMouse(true)
+settingsFrame:RegisterForDrag("LeftButton")
+settingsFrame:SetScript("OnDragStart", settingsFrame.StartMoving)
+settingsFrame:SetScript("OnDragStop", settingsFrame.StopMovingOrSizing)
+settingsFrame:SetClampedToScreen(true)
+settingsFrame:SetFrameStrata("DIALOG")
+settingsFrame:Hide()
+tinsert(UISpecialFrames, "LunarJournalSettingsFrame")
+if settingsFrame.TitleText then settingsFrame.TitleText:SetText("Lunar Journal: settings") end
+
+local recordHeader = settingsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+recordHeader:SetPoint("TOPLEFT", 16, -32)
+recordHeader:SetText("What to write down")
+
+local recordNote = settingsFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+recordNote:SetPoint("TOPLEFT", recordHeader, "BOTTOMLEFT", 0, -4)
+recordNote:SetText("For all your characters. Your own /lj notes are always written down.")
+
+local checks = {}
+for i, item in ipairs(RECORD) do
+    local cb = CreateFrame("CheckButton", nil, settingsFrame, "UICheckButtonTemplate")
+    cb:SetSize(24, 24)
+    local col, row = (i - 1) % 2, math.floor((i - 1) / 2)
+    cb:SetPoint("TOPLEFT", 14 + col * 268, -72 - row * 24)
+    local label = cb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    label:SetPoint("LEFT", cb, "RIGHT", 2, 0)
+    label:SetWidth(236)
+    label:SetJustifyH("LEFT")
+    label:SetText(item.label)
+    cb:SetScript("OnClick", function(self)
+        S.record = S.record or {}
+        S.record[item.key] = self:GetChecked() and true or false
+    end)
+    checks[item.key] = cb
+end
+
+local rows = math.ceil(#RECORD / 2)
+local storyHeader = settingsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+storyHeader:SetPoint("TOPLEFT", 16, -72 - rows * 24 - 14)
+storyHeader:SetText("How the story should be told")
+
+local storyNote = settingsFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+storyNote:SetPoint("TOPLEFT", storyHeader, "BOTTOMLEFT", 0, -4)
+storyNote:SetWidth(528)
+storyNote:SetJustifyH("LEFT")
+storyNote:SetText("Instructions for this character's story, e.g. the voice, the tone, what to dwell on or leave out. StoryMaker gives them to the AI as instructions, not as part of the journal.")
+
+local storyBox = CreateFrame("Frame", nil, settingsFrame, "BackdropTemplate")
+storyBox:SetPoint("TOPLEFT", storyNote, "BOTTOMLEFT", -4, -8)
+storyBox:SetPoint("BOTTOMRIGHT", -14, 44)
+if storyBox.SetBackdrop then
+    storyBox:SetBackdrop({
+        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 12, insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    })
+    storyBox:SetBackdropColor(0, 0, 0, 0.5)
+end
+
+local storyScroll = CreateFrame("ScrollFrame", "LunarJournalStoryScroll", storyBox, "UIPanelScrollFrameTemplate")
+storyScroll:SetPoint("TOPLEFT", 8, -8)
+storyScroll:SetPoint("BOTTOMRIGHT", -28, 8)
+
+local storyEdit = CreateFrame("EditBox", nil, storyScroll)
+storyEdit:SetMultiLine(true)
+storyEdit:SetAutoFocus(false)
+storyEdit:SetFontObject(ChatFontNormal)
+storyEdit:SetWidth(480)
+storyEdit:SetHeight(200)
+storyEdit:SetMaxLetters(INSTRUCTIONS_LIMIT)
+storyEdit:SetScript("OnEscapePressed", storyEdit.ClearFocus)
+storyEdit:SetScript("OnTextChanged", function(self, userInput)
+    if userInput and DB then
+        local text = self:GetText():gsub("^%s+", ""):gsub("%s+$", "")
+        DB.storyInstructions = text ~= "" and text or nil
+    end
+end)
+storyScroll:SetScrollChild(storyEdit)
+-- a click anywhere in the box puts the cursor in the text
+storyBox:EnableMouse(true)
+storyBox:SetScript("OnMouseDown", function() storyEdit:SetFocus() end)
+
+local storyCount = settingsFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+storyCount:SetPoint("BOTTOMLEFT", 16, 18)
+storyCount:SetText("Saved as you type (the game writes it to disk at logout or /reload).")
+
+local closeButton = CreateFrame("Button", nil, settingsFrame, "UIPanelButtonTemplate")
+closeButton:SetSize(90, 22)
+closeButton:SetPoint("BOTTOMRIGHT", -14, 12)
+closeButton:SetText(CLOSE or "Close")
+closeButton:SetScript("OnClick", function() settingsFrame:Hide() end)
+
+settingsFrame:SetScript("OnShow", function()
+    for key, cb in pairs(checks) do cb:SetChecked(not (S.record and S.record[key] == false)) end
+    storyEdit:SetText(DB and DB.storyInstructions or "")
+    storyEdit:SetCursorPosition(0)
+end)
+settingsFrame:SetScript("OnHide", function() storyEdit:ClearFocus() end)
+
+local function ShowSettings()
+    settingsFrame:Show()
+end
+
+local settingsButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+settingsButton:SetSize(90, 22)
+settingsButton:SetPoint("BOTTOMRIGHT", -12, 8)
+settingsButton:SetText("Settings")
+settingsButton:SetScript("OnClick", ShowSettings)
 
 ----------------------------------------------------------------------------------------
 -- Minimap button and options page (LunarLink.lua)
@@ -769,10 +1097,7 @@ local link = ns.NewLunarLink({
         l:AddHeader("What to write down")
         l:AddCheckbox("Pause the journal (write nothing down)",
             function() return S.paused end, function(on) S.paused = on end)
-        l:AddCheckbox("Save the quest texts (what the quest giver said)",
-            function() return S.questText end, function(on) S.questText = on end)
-        l:AddCheckbox("Count kills",
-            function() return S.kills end, function(on) S.kills = on end)
+        l:AddButton("What to write down, story instructions...", 280, ShowSettings)
         l:AddCheckbox("Print a chat line for every entry",
             function() return S.echo end, function(on) S.echo = on end)
         l:AddText(function()
@@ -787,6 +1112,7 @@ local link = ns.NewLunarLink({
         "/lj - show or hide the journal",
         "/lj note <text> - write your own line in the journal",
         "/lj pause - pause or resume the journal",
+        "/lj settings - what to write down, and how the story should be told",
         "/lj options - this page",
         "/lj forget yes - delete this character's whole journal",
     },
@@ -812,16 +1138,18 @@ SlashCmdList.LUNARJOURNAL = function(msg)
         S.paused = not S.paused
         Say(S.paused and "paused. Nothing is written down until /lj pause again." or "writing again.")
         if Refresh then Refresh() end
+    elseif cmd == "settings" or cmd == "record" or cmd == "story" then
+        ShowSettings()
     elseif cmd == "options" or cmd == "config" then
         link:OpenOptions()
     elseif cmd == "forget" then
         if rest ~= "yes" then Say("this deletes all of this character's journal. Type /lj forget yes to do it.") return end
         DB.sessions, DB.quests = {}, {}
-        session = nil
+        session, party, partyNow = nil, nil, {}
         StartSession()
         Say("journal cleared.")
     else
-        Say("/lj, /lj note <text>, /lj pause, /lj options, /lj forget yes")
+        Say("/lj, /lj note <text>, /lj pause, /lj settings, /lj options, /lj forget yes")
     end
 end
 
@@ -848,6 +1176,14 @@ On("ADDON_LOADED", function(name)
     LunarJournalSettings = LunarJournalSettings or {}
     S = LunarJournalSettings
     for k, v in pairs(DEFAULT_SETTINGS) do if S[k] == nil then S[k] = v end end
+    -- 0.1.x kept two of the record settings on their own
+    S.record = S.record or {}
+    for _, key in ipairs({ "questText", "kills" }) do
+        if S[key] ~= nil then
+            if S.record[key] == nil then S.record[key] = S[key] and true or false end
+            S[key] = nil
+        end
+    end
     LunarJournalDB = LunarJournalDB or {}
     DB = LunarJournalDB
     DB.version = 1
@@ -908,14 +1244,14 @@ On("CONFIRM_BINDER", function() MetNpc("innkeeper") end)
 On("GROUP_ROSTER_UPDATE", OnGroupChanged)
 On("TRADE_SHOW", function()
     local name = Plain(UnitName("NPC"))
-    if name and session then
+    if name and session and Rec("players") then
         session.players[name] = session.players[name] or "traded"
         Log("trade", { name = name })
     end
 end)
 On("DUEL_REQUESTED", function(name)
     name = Plain(name)
-    if name and session then
+    if name and session and Rec("players") then
         session.players[name] = session.players[name] or "duel"
         Log("duel", { name = name })
     end
