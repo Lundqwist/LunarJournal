@@ -88,7 +88,7 @@ takes the link away again.
 | `/lj` | show or hide the journal window: this session's summary and the latest entries |
 | `/lj note <text>` | write your own line in the journal |
 | `/lj pause` | pause or resume the journal |
-| `/lj settings` | the settings window: what to write down, and how the story should be told (also the Settings button in the journal window) |
+| `/lj settings` | the settings window: what to write down, and how the story should be told (also the Settings button in the journal window and at the top of the options page) |
 | `/lj options` | the options page (also under Options → AddOns → Lunar Journal) |
 | `/lj forget yes` | delete this character's whole journal |
 

@@ -977,7 +977,8 @@ settingsFrame:RegisterForDrag("LeftButton")
 settingsFrame:SetScript("OnDragStart", settingsFrame.StartMoving)
 settingsFrame:SetScript("OnDragStop", settingsFrame.StopMovingOrSizing)
 settingsFrame:SetClampedToScreen(true)
-settingsFrame:SetFrameStrata("DIALOG")
+settingsFrame:SetFrameStrata("FULLSCREEN_DIALOG")   -- above the game's Options panel
+settingsFrame:SetToplevel(true)
 settingsFrame:Hide()
 tinsert(UISpecialFrames, "LunarJournalSettingsFrame")
 if settingsFrame.TitleText then settingsFrame.TitleText:SetText("Lunar Journal: settings") end
@@ -1073,6 +1074,7 @@ settingsFrame:SetScript("OnHide", function() storyEdit:ClearFocus() end)
 
 local function ShowSettings()
     settingsFrame:Show()
+    settingsFrame:Raise()
 end
 
 local settingsButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
@@ -1094,10 +1096,13 @@ local link = ns.NewLunarLink({
     hint    = "Left-click: show or hide the journal",
     tooltip = SummaryTooltip,
     options = function(l)
-        l:AddHeader("What to write down")
+        l:AddHeader("Journal")
+        local settingsBtn = l:AddButton("Settings", 150, ShowSettings)
+        l:AddButton("Show the journal", 150, function() frame:Show() end, settingsBtn)
+        l:AddText("Settings: what to write down, and how this character's story should be told.",
+            "GameFontHighlightSmall")
         l:AddCheckbox("Pause the journal (write nothing down)",
             function() return S.paused end, function(on) S.paused = on end)
-        l:AddButton("What to write down, story instructions...", 280, ShowSettings)
         l:AddCheckbox("Print a chat line for every entry",
             function() return S.echo end, function(on) S.echo = on end)
         l:AddText(function()
@@ -1106,7 +1111,6 @@ local link = ns.NewLunarLink({
             for _ in pairs(DB and DB.quests or {}) do q = q + 1 end
             return string.format("This character's journal: %d sessions, %d quests. It is saved when you log out or /reload.", n, q)
         end, "GameFontHighlightSmall")
-        l:AddButton("Show the journal", 150, function() frame:Show() end)
     end,
     help = {
         "/lj - show or hide the journal",
