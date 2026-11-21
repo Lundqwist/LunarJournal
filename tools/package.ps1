@@ -19,6 +19,7 @@ if (-not $version) { throw "No '## Version:' line in $name.toc" }
 $files = @(
     "$name.toc",
     "LunarLink.lua",
+    "Media\Icon.tga",
     "$name.lua",
     "LICENSE",
     "README.md"

@@ -26,7 +26,7 @@
 
 local ADDON_NAME, ns = ...
 
-local ICON = "Interface\\Icons\\INV_Misc_Book_09"
+local ICON = "Interface\\AddOns\\LunarJournal\\Media\\Icon"   -- made by tools\make-icon.ps1
 local MAX_EVENTS = 4000          -- per session; the summary counters go on after that
 local MAX_SESSIONS = 300         -- oldest are dropped first
 local RESUME_GAP = 15 * 60       -- a login this soon after the last logout continues that session
