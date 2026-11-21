@@ -6,7 +6,7 @@
 - Quests done in a group: accepted and turned-in quests note who you were grouped with and which of them had the same quest. Each group lists the quests turned in while it lasted.
 - Its own icon on the minimap button and in the AddOns list: the leather journal with the gold crescent moon (`Media\Icon.tga`, made from `Media\icon.png` by `tools\make-icon.ps1`).
 - After a /reload the group carries on instead of everyone being written down as joining again.
-- New settings window (`/lj settings`, or the Settings button in the journal window or at the top of the options page): a checkbox for each kind of thing the journal writes down, and a text box for how this character's story should be told. The story instructions are saved apart from the journal entries, so StoryMaker gives them to the AI as instructions. The old "Save the quest texts" and "Count kills" options moved there and keep their setting.
+- New settings window (`/lj settings`, or the Settings button in the journal window or at the top of the options page): a checkbox for each kind of thing the journal writes down, and a text box for how this character's story should be told (it shows greyed-out examples until you type). The story instructions are saved apart from the journal entries, so StoryMaker gives them to the AI as instructions. The old "Save the quest texts" and "Count kills" options moved there and keep their setting.
 
 ## 0.1.4 (2026-11-19)
 

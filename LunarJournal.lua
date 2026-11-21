@@ -1044,7 +1044,27 @@ storyEdit:SetWidth(480)
 storyEdit:SetHeight(200)
 storyEdit:SetMaxLetters(INSTRUCTIONS_LIMIT)
 storyEdit:SetScript("OnEscapePressed", storyEdit.ClearFocus)
+-- greyed-out examples behind the empty box: only a picture, never part of the text or
+-- the saved instructions, gone as soon as anything is typed
+local storyExamples = storyBox:CreateFontString(nil, "ARTWORK", "GameFontDisable")
+storyExamples:SetPoint("TOPLEFT", 10, -10)
+storyExamples:SetPoint("RIGHT", -30, 0)
+storyExamples:SetJustifyH("LEFT")
+storyExamples:SetJustifyV("TOP")
+storyExamples:SetSpacing(3)
+storyExamples:SetTextColor(0.5, 0.5, 0.5)
+storyExamples:SetText(table.concat({
+    "For example:",
+    "Tell it as a gruff old orc who pretends he never cared about anyone.",
+    "Write each chapter as a letter to my sister back home.",
+    "Keep chapters short, about 400 words, and end each one on the road.",
+    "Dwell on fishing and quiet evenings; skip fights unless someone died.",
+    "Call my wolf companion Ashpaw. Never mention gold or money.",
+    "Make it funny, but let the deaths be sad.",
+}, "\n"))
+
 storyEdit:SetScript("OnTextChanged", function(self, userInput)
+    storyExamples:SetShown(self:GetText() == "")
     if userInput and DB then
         local text = self:GetText():gsub("^%s+", ""):gsub("%s+$", "")
         DB.storyInstructions = text ~= "" and text or nil
@@ -1069,6 +1089,7 @@ settingsFrame:SetScript("OnShow", function()
     for key, cb in pairs(checks) do cb:SetChecked(not (S.record and S.record[key] == false)) end
     storyEdit:SetText(DB and DB.storyInstructions or "")
     storyEdit:SetCursorPosition(0)
+    storyExamples:SetShown(storyEdit:GetText() == "")
 end)
 settingsFrame:SetScript("OnHide", function() storyEdit:ClearFocus() end)
 
